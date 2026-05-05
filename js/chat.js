@@ -13,19 +13,10 @@ let isWaiting = false;
 
 /* ── Public API ──────────────────────────────────────────── */
 
-/**
- * Reset conversation history (e.g. when new data is loaded).
- */
 export function resetConversation() {
   conversationHistory = [];
 }
 
-/**
- * Send a message to the OliveBot backend.
- * @param {string} text         - User's message text
- * @param {string} systemPrompt - Full system prompt with student context
- * @returns {Promise<void>}
- */
 export async function sendChatMessage(text, systemPrompt) {
   if (isWaiting) return;
 
@@ -43,7 +34,6 @@ export async function sendChatMessage(text, systemPrompt) {
     appendBotMessage(reply);
     conversationHistory.push({ role: 'assistant', content: reply });
   } catch (err) {
-    // Remove the user message that has no matching assistant response
     if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === 'user') {
       conversationHistory.pop();
     }
@@ -56,37 +46,18 @@ export async function sendChatMessage(text, systemPrompt) {
   setSendButtonState(false);
 }
 
-/**
- * Display a bot message without going through the API (e.g. welcome message).
- * @param {string} text
- */
 export function displayBotMessage(text) {
   appendBotMessage(text);
 }
 
-/**
- * Display a rejection message when the user asks something out of scope.
- * @param {string} text
- */
 export function displayRejection(text) {
   appendBotMessage(text, true);
 }
 
-/**
- * Display a user message bubble.
- * @param {string} text
- */
 export function displayUserBubble(text) {
   appendUserMessage(text);
 }
 
-/**
- * Send a message silently (no user bubble shown in UI).
- * Used after quiz completion to inject results into conversation context.
- * @param {string} content      - Message content (not shown in UI)
- * @param {string} systemPrompt - Full system prompt with student context
- * @returns {Promise<void>}
- */
 export async function sendSilentMessage(content, systemPrompt) {
   if (isWaiting) return;
 
@@ -102,7 +73,6 @@ export async function sendSilentMessage(content, systemPrompt) {
     appendBotMessage(reply);
     conversationHistory.push({ role: 'assistant', content: reply });
   } catch (err) {
-    // Remove the user message that has no matching assistant response
     if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === 'user') {
       conversationHistory.pop();
     }
@@ -115,10 +85,6 @@ export async function sendSilentMessage(content, systemPrompt) {
   setSendButtonState(false);
 }
 
-/**
- * Check if a message send is currently in progress.
- * @returns {boolean}
- */
 export function isBusy() {
   return isWaiting;
 }
@@ -159,10 +125,8 @@ function appendUserMessage(text) {
   div.className = 'msg user';
   div.innerHTML = `
     <div class="msg-body">
-      <div class="msg-name">You</div>
       <div class="msg-bubble">${escapeHtml(text)}</div>
-    </div>
-    <div class="msg-avatar user">U</div>`;
+    </div>`;
   container.appendChild(div);
   scrollToBottom();
 }
@@ -170,12 +134,11 @@ function appendUserMessage(text) {
 function appendBotMessage(text, isRejection = false) {
   const container = document.getElementById('messages');
   const div = document.createElement('div');
-  div.className = 'msg';
+  div.className = 'msg bot';
   const bubbleClass = isRejection ? 'msg-bubble rejection' : 'msg-bubble';
   div.innerHTML = `
-    <div class="msg-avatar bot">O</div>
+    <div class="msg-avatar bot">✧</div>
     <div class="msg-body">
-      <div class="msg-name">OliveBot</div>
       <div class="${bubbleClass}">${renderMessage(text)}</div>
     </div>`;
   container.appendChild(div);
@@ -185,12 +148,11 @@ function appendBotMessage(text, isRejection = false) {
 function showTypingIndicator() {
   const container = document.getElementById('messages');
   const div = document.createElement('div');
-  div.className = 'msg';
+  div.className = 'msg bot';
   div.id = 'typing-indicator';
   div.innerHTML = `
-    <div class="msg-avatar bot">O</div>
+    <div class="msg-avatar bot">✧</div>
     <div class="msg-body">
-      <div class="msg-name">OliveBot</div>
       <div class="msg-bubble">
         <div class="typing"><span></span><span></span><span></span></div>
       </div>
@@ -204,12 +166,16 @@ function removeTypingIndicator() {
 }
 
 function setSendButtonState(disabled) {
-  document.getElementById('send-btn').disabled = disabled;
+  const btn = document.getElementById('send-btn');
+  if (btn) btn.disabled = disabled;
 }
 
 function scrollToBottom() {
   const messages = document.getElementById('messages');
-  messages.scrollTop = messages.scrollHeight;
+  // Need to use requestAnimationFrame to allow for DOM batching
+  requestAnimationFrame(() => {
+    messages.scrollTop = messages.scrollHeight;
+  });
 }
 
 function escapeHtml(str) {

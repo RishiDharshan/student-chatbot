@@ -1,8 +1,6 @@
 # 🎯 OliveBot: AI-Powered Exam Performance Analyst
 
-> **Automated Video Walkthrough**
-> 
-> ![OliveBot Demo Video](assets/demo.webp)
+
 
 ## ⚠️ The Problem
 Competitive exam aspirants (Banking, SSC, MBA, UPSC) take dozens of mock tests but struggle to extract actionable insights. They wait hours for mentors to analyze their performance data, leading to wasted study time, repetitive mistakes, and stagnant percentile growth.

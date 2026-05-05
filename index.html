@@ -1,211 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>OliveBot — Oliveboard Performance Analyst</title>
-  <meta name="description" content="AI-powered competitive exam performance analyst and study coach for Banking, SSC, MBA, and UPSC aspirants on Oliveboard."/>
+  <meta name="description"
+    content="AI-powered competitive exam performance analyst and study coach for Banking, SSC, MBA, and UPSC aspirants on Oliveboard." />
 
   <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Using Inter for a more premium, modern feel -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- Chart.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
+  <!-- Marked.js for Markdown Parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/styles.css"/>
+  <link rel="stylesheet" href="/css/styles.css" />
 </head>
+
 <body>
 
-<div class="app" id="app">
+  <div class="app" id="app">
 
-  <!-- ═══ Topbar ═══ -->
-  <header class="topbar" id="topbar">
-    <div class="topbar-logo">OliveBot <span>by Oliveboard</span></div>
-    <div class="topbar-right">
-      <span class="badge badge-exam" id="exam-badge-text">No exam loaded</span>
-      <span class="badge badge-olive">AI Analyst</span>
-    </div>
-  </header>
+    <!-- ═══ Chat Area ═══ -->
+    <main class="chat-area" id="chat-area">
 
-  <!-- ═══ Sidebar ═══ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-label">Load Data</div>
-      <div class="upload-zone" id="upload-zone">
-        <input type="file" id="file-input" accept=".json" aria-label="Upload mock test JSON"/>
-        <div class="upload-zone-icon">📂</div>
-        <div class="upload-zone-text"><strong>Click to upload</strong> mock test JSON<br/>or drag &amp; drop</div>
-        <div class="upload-status" id="upload-status">✓ Data loaded successfully</div>
-      </div>
-    </div>
+      <!-- Minimal Header -->
+      <header class="chat-header">
+        <div class="chat-header-logo">
+          OliveBot <span>AI Coach</span>
+        </div>
+      </header>
 
-    <div class="sidebar-scroll">
-      <!-- Student Info -->
-      <div class="sidebar-section" id="student-section" style="display:none">
-        <div class="sidebar-label">Student</div>
-        <div class="student-card">
-          <div class="student-name" id="s-name">—</div>
-          <div class="student-exam" id="s-exam">—</div>
-          <div class="student-meta">
-            <span id="s-mocks">0 mocks</span>
-            <span>·</span>
-            <span id="s-days">— days left</span>
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome-screen">
+          <div class="welcome-icon">✧</div>
+          <div class="welcome-title">How can I help you prep today?</div>
+          <div class="welcome-sub">
+            Upload your mock test data or drag & drop the JSON file here to get personalized insights, identify weak
+            areas, and build a tailored study roadmap.
+          </div>
+          <div class="welcome-actions">
+            <label class="welcome-upload-btn" id="upload-zone">
+              <input type="file" id="file-input" accept=".json" aria-label="Upload mock test JSON"
+                style="display:none" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:-4px; margin-right:6px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Upload JSON Data
+            </label>
+            <div class="upload-status" id="upload-status" style="display:none;">✓ Data loaded successfully</div>
           </div>
         </div>
       </div>
 
-      <!-- Mini Stats -->
-      <div class="sidebar-section" id="stats-section" style="display:none">
-        <div class="sidebar-label">Performance Snapshot</div>
-        <div class="mini-stats">
-          <div class="mini-stat">
-            <div class="mini-stat-val" id="avg-score">—</div>
-            <div class="mini-stat-lbl">Avg Score</div>
-            <div class="mini-stat-trend" id="score-trend"></div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-stat-val" id="avg-pct">—</div>
-            <div class="mini-stat-lbl">Avg Percentile</div>
-            <div class="mini-stat-trend" id="pct-trend"></div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-stat-val" id="best-score">—</div>
-            <div class="mini-stat-lbl">Best Score</div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-stat-val" id="improvement">—</div>
-            <div class="mini-stat-lbl">Improvement</div>
-          </div>
+      <!-- Minimal Input Area -->
+      <div class="input-area" id="input-area">
+        <div class="input-wrap">
+          <textarea id="chat-input" placeholder="Message OliveBot..." rows="1"
+            aria-label="Chat message input"></textarea>
+          <!-- The upload zone can also act implicitly on document drag n drop, but we removed visual sidebars -->
         </div>
-      </div>
-
-      <!-- Score Trend Chart -->
-      <div class="sidebar-section" id="chart-section" style="display:none">
-        <div class="sidebar-label">Score Trend</div>
-        <div class="chart-wrap">
-          <canvas id="sidebar-chart" aria-label="Score trend chart"></canvas>
-        </div>
-      </div>
-
-      <!-- Quick Prompts -->
-      <div class="quick-prompts" id="quick-prompts" style="display:none">
-        <div class="sidebar-label">Quick Analysis</div>
-        <button class="qp-btn" onclick="quickPrompt('Full analysis')">
-          <span class="qp-icon">📊</span>Full analysis
-        </button>
-        <button class="qp-btn" onclick="quickPrompt('My weak areas')">
-          <span class="qp-icon">⚠️</span>Weak areas
-        </button>
-        <button class="qp-btn" onclick="quickPrompt('Study roadmap')">
-          <span class="qp-icon">🗺️</span>Study roadmap
-        </button>
-        <button class="qp-btn" onclick="quickPrompt('Time audit')">
-          <span class="qp-icon">⏱️</span>Time audit
-        </button>
-        <button class="qp-btn" onclick="quickPrompt('How am I doing?')">
-          <span class="qp-icon">🎯</span>Cutoff check
-        </button>
-        <button class="qp-btn" onclick="quickPrompt('Compare mock 1 vs mock 10')">
-          <span class="qp-icon">📈</span>Early vs recent
+        <button class="send-btn" id="send-btn" title="Send message">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
         </button>
       </div>
-    </div>
-
-    <div class="disclaimer">
-      OliveBot analyses your data using GPT-4o. Upload JSON with 3+ mock tests for best results.
-    </div>
-  </aside>
-
-  <!-- ═══ Chat Area ═══ -->
-  <main class="chat-area" id="chat-area">
-    <div class="messages" id="messages">
-      <div class="welcome" id="welcome-screen">
-        <div class="welcome-icon">🎯</div>
-        <div class="welcome-title">Your <em>personal</em> exam coach</div>
-        <div class="welcome-sub">
-          Upload your mock test JSON and I'll analyse your performance, identify weak areas,
-          and build a personalised roadmap to exam day.
-        </div>
-        <div class="welcome-steps">
-          <div class="welcome-step">
-            <div class="welcome-step-num">1</div>Upload mock test JSON
-          </div>
-          <div class="welcome-step">
-            <div class="welcome-step-num">2</div>Ask about your prep
-          </div>
-          <div class="welcome-step">
-            <div class="welcome-step-num">3</div>Get data-driven insights
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="input-area" id="input-area">
-      <div class="input-wrap">
-        <textarea
-          id="chat-input"
-          placeholder="Ask about your performance, weak areas, study plan…"
-          rows="1"
-          aria-label="Chat message input"
-        ></textarea>
-      </div>
-      <button class="send-btn" id="send-btn" title="Send message">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
-    </div>
-  </main>
-
-</div>
-
-<!-- ═══ Quiz Overlay ═══ -->
-<div id="quiz-overlay" class="quiz-overlay quiz-hidden" role="dialog" aria-modal="true" aria-labelledby="quiz-mock-name">
-  <div class="quiz-modal">
-
-    <!-- Header -->
-    <div class="quiz-header">
-      <div class="quiz-header-info">
-        <div class="quiz-mock-name" id="quiz-mock-name">Loading…</div>
-        <div class="quiz-meta">
-          <span class="quiz-badge" id="quiz-difficulty">Medium</span>
-          <span class="quiz-badge quiz-badge-track" id="quiz-track">Banking</span>
-        </div>
-      </div>
-      <button class="quiz-close-btn" id="quiz-close-btn" title="Close quiz">&#x2715;</button>
-    </div>
-
-    <!-- Progress bar -->
-    <div class="quiz-progress-wrap">
-      <div class="quiz-progress-bar" id="quiz-progress-bar"></div>
-    </div>
-
-    <!-- Body -->
-    <div class="quiz-body">
-      <div class="quiz-q-counter" id="quiz-q-num">Question 1 of 10</div>
-      <div class="quiz-topic-label" id="quiz-topic-label">Topic · Subtopic</div>
-      <div class="quiz-question" id="quiz-question-text">Loading question…</div>
-      <div class="quiz-options" id="quiz-options">
-        <!-- Options rendered by quiz.js -->
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="quiz-footer">
-      <div class="quiz-live-score" id="quiz-live-score">Score: 0/0</div>
-      <div class="quiz-auto-label">Auto-solving…</div>
-    </div>
+    </main>
 
   </div>
-</div>
 
-<!-- App Entry Point -->
-<script type="module" src="/js/app.js"></script>
+  <!-- ═══ Quiz Overlay ═══ -->
+  <div id="quiz-overlay" class="quiz-overlay quiz-hidden" role="dialog" aria-modal="true"
+    aria-labelledby="quiz-mock-name">
+    <div class="quiz-modal">
+
+      <!-- Header -->
+      <div class="quiz-header">
+        <div class="quiz-header-info">
+          <div class="quiz-mock-name" id="quiz-mock-name">Loading…</div>
+          <div class="quiz-meta">
+            <span class="quiz-badge" id="quiz-difficulty">Medium</span>
+            <span class="quiz-badge quiz-badge-track" id="quiz-track">Banking</span>
+          </div>
+        </div>
+        <button class="quiz-close-btn" id="quiz-close-btn" title="Close quiz">&#x2715;</button>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="quiz-progress-wrap">
+        <div class="quiz-progress-bar" id="quiz-progress-bar"></div>
+      </div>
+
+      <!-- Body -->
+      <div class="quiz-body">
+        <div class="quiz-q-counter" id="quiz-q-num">Question 1 of 10</div>
+        <div class="quiz-topic-label" id="quiz-topic-label">Topic · Subtopic</div>
+        <div class="quiz-question" id="quiz-question-text">Loading question…</div>
+        <div class="quiz-options" id="quiz-options">
+          <!-- Options rendered by quiz.js -->
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="quiz-footer">
+        <div class="quiz-live-score" id="quiz-live-score">Score: 0/0</div>
+        <div class="quiz-auto-label">Auto-solving…</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- App Entry Point -->
+  <script type="module" src="/js/app.js"></script>
 
 </body>
+
 </html>

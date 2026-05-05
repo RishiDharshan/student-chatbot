@@ -6,7 +6,7 @@
 
 import { getMockById } from './mock-catalog.js';
 
-/** Escape HTML entities to prevent XSS from AI-generated content */
+/** Escape HTML entities to prevent XSS from AI-generated attributes */
 function esc(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -24,12 +24,26 @@ function esc(str) {
 export function renderMessage(raw) {
   let html = raw;
 
+  // Use marked.js for standard markdown rendering if available
+  // This automatically handles tables, lists, nested bolding, etc far better than regex.
+  if (typeof marked !== 'undefined') {
+    // Escaping is handled mostly by marked, but we allow HTML since we have custom elements.
+    html = marked.parse(raw, { breaks: true });
+  }
+
+  // marked.js might wrap our block-level custom tags in <p> tags.
+  // We remove the <p> wrappers for our special tags so they render cleanly as block UI components.
+  // This prevents layout breakage in CSS.
+  html = html.replace(/<p>\s*(<(?:STATS|CHART|ROADMAP|MOCK_LINK)[^>]*\/?(?:>|>\s*<\/[A-Z_]+>))\s*<\/p>/g, '$1');
+
+  // We also handle cases where standard HTML escaping happened to our custom tags by marked.
+  html = html.replace(/&lt;((?:STATS|CHART|ROADMAP|MOCK_LINK)[^&]+)&gt;/g, '<$1>');
+
+  // Process custom rich UI blocks
   html = renderStatBlocks(html);
   html = renderChartBlocks(html);
   html = renderRoadmapBlocks(html);
   html = renderMockLinkBlocks(html);
-  html = renderMarkdownTables(html);
-  html = renderMarkdown(html);
 
   return html;
 }
@@ -37,9 +51,11 @@ export function renderMessage(raw) {
 /* ── STATS Block ─────────────────────────────────────────── */
 
 function renderStatBlocks(html) {
-  return html.replace(/<STATS items='([^']+)'\/>/g, (_, json) => {
+  return html.replace(/<STATS items=('|&#39;|")([^'"]+)\1\s*\/>/g, (_, quote, jsonRaw) => {
     try {
-      const items = JSON.parse(json);
+      // Decode escaped quotes inside JSON
+      const jsonStr = jsonRaw.replace(/&quot;/g, '"');
+      const items = JSON.parse(jsonStr);
       const allowedColors = ['olive', 'green', 'amber', 'red'];
       const cards = items
         .map(
@@ -54,7 +70,8 @@ function renderStatBlocks(html) {
         )
         .join('');
       return `<div class="stat-grid">${cards}</div>`;
-    } catch {
+    } catch (e) {
+      console.warn("STATS block parse error", e);
       return '';
     }
   });
@@ -64,11 +81,14 @@ function renderStatBlocks(html) {
 
 function renderChartBlocks(html) {
   return html.replace(
-    /<CHART type="([^"]+)" title="([^"]+)" labels='([^']+)' data='([^']+)' colors='([^']+)'\/>/g,
-    (_, type, title, labels, data, colors) => {
+    /<CHART type=("|&quot;)([^"]+)\1 title=("|&quot;)([^"]+)\3 labels=('|&#39;|")([^']+)\5 data=('|&#39;|")([^']+)\7 colors=('|&#39;|")([^']+)\9\s*\/>/g,
+    (_, _q1, type, _q2, title, _q3, labelsRaw, _q4, dataRaw, _q5, colorsRaw) => {
       const chartId = 'chart-' + Math.random().toString(36).slice(2, 10);
+      
+      const decode = s => s.replace(/&quot;/g, '"');
+      
       // Defer chart rendering until the DOM element exists
-      setTimeout(() => renderInlineChart(chartId, type, labels, data, colors), 100);
+      setTimeout(() => renderInlineChart(chartId, type, decode(labelsRaw), decode(dataRaw), decode(colorsRaw)), 100);
       return `
         <div class="inline-chart">
           <div class="chart-title">${esc(title)}</div>
@@ -143,9 +163,10 @@ function renderInlineChart(id, type, labelsJson, dataJson, colorsJson) {
 /* ── ROADMAP Block ───────────────────────────────────────── */
 
 function renderRoadmapBlocks(html) {
-  return html.replace(/<ROADMAP weeks='([^']+)'\/>/g, (_, json) => {
+  return html.replace(/<ROADMAP weeks=('|&#39;|")([^'"]+)\1\s*\/>/g, (_, quote, jsonRaw) => {
     try {
-      const weeks = JSON.parse(json);
+      const jsonStr = jsonRaw.replace(/&quot;/g, '"');
+      const weeks = JSON.parse(jsonStr);
       const cards = weeks
         .map(w => {
           const priorityClass =
@@ -169,14 +190,19 @@ function renderRoadmapBlocks(html) {
 /* ── MOCK_LINK Block ─────────────────────────────────────── */
 
 function renderMockLinkBlocks(html) {
-  // Flexible regex: matches <MOCK_LINK ... /> and <MOCK_LINK ... > with attributes in ANY order
+  // Flexible regex: matches <MOCK_LINK ... /> and <MOCK_LINK ... > with attributes in ANY order.
+  // It decodes double quotes if marked.js sanitized them.
   return html.replace(
     /<MOCK_LINK\s+([^>]*?)\/?>/g,
-    (_, attrs) => {
+    (_, attrsRaw) => {
+      // Decode HTML entities if they were escaped by marked
+      const attrs = attrsRaw.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
       const get = (key) => {
         const m = attrs.match(new RegExp(`${key}\\s*=\\s*"([^"]*?)"`));
         return m ? m[1] : '';
       };
+      
       const id = get('id');
       const name = get('name');
       const difficulty = get('difficulty') || 'Medium';
@@ -192,7 +218,7 @@ function renderMockLinkBlocks(html) {
 
       const diffClass =
         difficulty === 'Hard' ? 'diff-hard' : difficulty === 'Easy' ? 'diff-easy' : 'diff-medium';
-      // Use validated catalog ID directly; it's safe (alphanumeric + underscores only)
+      
       const quizId = id;
       return `
         <div class="mock-rec-card" onclick="window.startQuiz('${esc(quizId)}')">
@@ -209,68 +235,4 @@ function renderMockLinkBlocks(html) {
         </div>`;
     }
   );
-}
-
-/* ── Markdown Tables ─────────────────────────────────────── */
-
-function renderMarkdownTables(html) {
-  return html.replace(
-    /(?:^|\n)(\|.+\|)\n(\|[-:| ]+\|)\n((?:\|.+\|\n?)+)/g,
-    (_match, headerRow, _sepRow, bodyRows) => {
-      const headers = headerRow
-        .split('|')
-        .filter(c => c.trim())
-        .map(c => `<th>${c.trim()}</th>`)
-        .join('');
-      const rows = bodyRows
-        .trim()
-        .split('\n')
-        .map(row => {
-          const cells = row
-            .split('|')
-            .filter(c => c.trim())
-            .map(c => `<td>${c.trim()}</td>`)
-            .join('');
-          return `<tr>${cells}</tr>`;
-        })
-        .join('');
-      return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
-    }
-  );
-}
-
-/* ── Markdown Formatting ─────────────────────────────────── */
-
-function renderMarkdown(html) {
-  // Headers
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-
-  // Inline formatting
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
-
-  // Lists
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, match => `<ul>${match}</ul>`);
-
-  // Paragraphs and line breaks
-  html = html.replace(/\n\n/g, '</p><p>');
-  html = html.replace(/\n/g, '<br/>');
-  html = `<p>${html}</p>`;
-
-  // Clean up: remove empty paragraphs and fix nesting
-  html = html.replace(/<p><\/p>/g, '');
-  html = html.replace(/<p>(<h[23]>)/g, '$1');
-  html = html.replace(/(<\/h[23]>)<\/p>/g, '$1');
-  html = html.replace(/<p>(<ul>)/g, '$1');
-  html = html.replace(/(<\/ul>)<\/p>/g, '$1');
-  html = html.replace(/<p>(<div)/g, '$1');
-  html = html.replace(/(<\/div>)<\/p>/g, '$1');
-  html = html.replace(/<p>(<table)/g, '$1');
-  html = html.replace(/(<\/table>)<\/p>/g, '$1');
-
-  return html;
 }

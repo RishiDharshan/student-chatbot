@@ -1,6 +1,6 @@
 /**
  * OliveBot — Application Entry Point
- * Wires together all modules: sidebar, chat, stats engine, prompt builder, and quiz.
+ * Wires together all modules: sidebar, chat, stats engine, prompt builder, quiz, and nudge engine.
  * Handles global event listeners and intent filtering.
  */
 
@@ -9,6 +9,7 @@ import { buildSystemPrompt } from './prompt-builder.js';
 import { sendChatMessage, sendSilentMessage, resetConversation, displayBotMessage, displayRejection, displayUserBubble, isBusy } from './chat.js';
 import { initFileUpload, populateSidebar, buildWelcomeMessage } from './sidebar.js';
 import { initQuiz, startQuiz, onQuizComplete } from './quiz.js';
+import { generateNudges, renderNudgeCards, scheduleIdleNudge, cancelIdleNudge } from './nudge-engine.js';
 
 /* ── State ───────────────────────────────────────────────── */
 
@@ -40,8 +41,11 @@ async function handleSend() {
   const text = input.value.trim();
   if (!text || isBusy()) return;
 
+  // Cancel idle nudge on any user interaction
+  cancelIdleNudge();
+
   if (!mockData) {
-    displayBotMessage('⚠️ Please upload your mock test JSON file first using the panel on the left.');
+    displayBotMessage('⚠️ Please upload your mock test JSON file first using the upload button above.');
     return;
   }
 
@@ -61,6 +65,18 @@ async function handleSend() {
   await sendChatMessage(text, systemPrompt);
 }
 
+/* ── Nudge Action Handler ────────────────────────────────── */
+
+function handleNudgeAction(promptText) {
+  if (!mockData) {
+    displayBotMessage('⚠️ Please upload your mock test JSON first.');
+    return;
+  }
+  cancelIdleNudge();
+  document.getElementById('chat-input').value = promptText;
+  handleSend();
+}
+
 /* ── Quick Prompt Handler ────────────────────────────────── */
 
 function handleQuickPrompt(text) {
@@ -68,6 +84,7 @@ function handleQuickPrompt(text) {
     displayBotMessage('⚠️ Please upload your mock test JSON first.');
     return;
   }
+  cancelIdleNudge();
   document.getElementById('chat-input').value = text;
   handleSend();
 }
@@ -82,8 +99,41 @@ function handleFileLoaded(data) {
     document.getElementById('welcome-screen').style.display = 'none';
     resetConversation();
 
+    // Display the welcome message
     const welcomeMsg = buildWelcomeMessage(data, preComputedStats);
     displayBotMessage(welcomeMsg);
+
+    // Generate and display nudge cards
+    const nudges = generateNudges(data, preComputedStats);
+    if (nudges.length > 0) {
+      const nudgeHtml = renderNudgeCards(nudges, 2);
+      const container = document.getElementById('messages');
+      const nudgeWrapper = document.createElement('div');
+      nudgeWrapper.className = 'nudge-wrapper';
+      nudgeWrapper.style.display = 'flex';
+      nudgeWrapper.style.flexDirection = 'column';
+      nudgeWrapper.style.alignItems = 'center';
+      nudgeWrapper.style.width = '100%';
+      nudgeWrapper.innerHTML = nudgeHtml;
+      container.appendChild(nudgeWrapper);
+      // Scroll to show nudge cards
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Schedule idle nudge in case the user doesn't interact
+    scheduleIdleNudge((cardHtml) => {
+      const container = document.getElementById('messages');
+      const idleWrapper = document.createElement('div');
+      idleWrapper.className = 'nudge-wrapper';
+      idleWrapper.style.display = 'flex';
+      idleWrapper.style.flexDirection = 'column';
+      idleWrapper.style.alignItems = 'center';
+      idleWrapper.style.width = '100%';
+      idleWrapper.innerHTML = cardHtml;
+      container.appendChild(idleWrapper);
+      container.scrollTop = container.scrollHeight;
+    }, 45);
+
   } catch (err) {
     console.error('[OliveBot] File load error:', err);
     displayBotMessage(`❌ Error loading data: ${err.message}. Please check your JSON file matches the expected format.`);
@@ -182,6 +232,8 @@ function init() {
   chatInput.addEventListener('input', function () {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+    // Cancel idle nudge when user starts typing
+    cancelIdleNudge();
   });
 
   // Quiz system
@@ -191,6 +243,8 @@ function init() {
   // Expose globals for HTML onclick attributes
   window.quickPrompt = handleQuickPrompt;
   window.startQuiz = startQuiz;
+  window.nudgeAction = handleNudgeAction;
+  window.__testUpload = handleFileLoaded;
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: student-chatbot
+    env: python
+    buildCommand: "" # No build step required
+    startCommand: "python3 server.py"
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false

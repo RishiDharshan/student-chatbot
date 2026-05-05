@@ -2,3 +2,8 @@
 .DS_Store
 .claude
  mock_test_data.json
+server.log
+scratch/
+test*.js
+test*.mjs
+public/
