@@ -90,104 +90,56 @@ function handleQuickPrompt(text) {
   handleSend();
 }
 
-/* ── Data Load & Sync Handler ────────────────────────────── */
+/* ── File Load Handler ───────────────────────────────────── */
 
-let currentDataHash = null;
-
-function processData(data) {
+function handleFileLoaded(data) {
   try {
-    const dataHash = JSON.stringify(data);
-    if (currentDataHash === dataHash) return; // No changes
-    
-    const wasEmpty = !mockData;
     mockData = data;
-    currentDataHash = dataHash;
     preComputedStats = preComputeStats(data);
     populateSidebar(data, preComputedStats);
-    
-    if (wasEmpty) {
-      document.getElementById('welcome-screen').style.display = 'none';
-      resetConversation();
+    document.getElementById('welcome-screen').style.display = 'none';
+    resetConversation();
 
-      // Display the welcome message
-      const welcomeMsg = buildWelcomeMessage(data, preComputedStats);
-      displayBotMessage(welcomeMsg);
+    // Display the welcome message
+    const welcomeMsg = buildWelcomeMessage(data, preComputedStats);
+    displayBotMessage(welcomeMsg);
 
-      // Generate and display nudge cards
-      const nudges = generateNudges(data, preComputedStats);
-      if (nudges.length > 0) {
-        const nudgeHtml = renderNudgeCards(nudges, 2);
-        const container = document.getElementById('messages');
-        const nudgeWrapper = document.createElement('div');
-        nudgeWrapper.className = 'nudge-wrapper';
-        nudgeWrapper.style.display = 'flex';
-        nudgeWrapper.style.flexDirection = 'column';
-        nudgeWrapper.style.alignItems = 'center';
-        nudgeWrapper.style.width = '100%';
-        nudgeWrapper.innerHTML = nudgeHtml;
-        container.appendChild(nudgeWrapper);
-        container.scrollTop = container.scrollHeight;
-      }
-
-      // Schedule idle nudge
-      scheduleIdleNudge((cardHtml) => {
-        const container = document.getElementById('messages');
-        const idleWrapper = document.createElement('div');
-        idleWrapper.className = 'nudge-wrapper';
-        idleWrapper.style.display = 'flex';
-        idleWrapper.style.flexDirection = 'column';
-        idleWrapper.style.alignItems = 'center';
-        idleWrapper.style.width = '100%';
-        idleWrapper.innerHTML = cardHtml;
-        container.appendChild(idleWrapper);
-        container.scrollTop = container.scrollHeight;
-      }, 45);
-    } else {
-      console.log('[OliveBot] Background data sync complete.');
-      // The user injected new data via the Demo Panel (or re-uploaded).
-      // We should proactively trigger nudges based on the new data!
-      displayBotMessage("I noticed you just updated your mock test data! I've analyzed your latest performance. Here are some quick insights:");
-      
-      const nudges = generateNudges(data, preComputedStats);
-      if (nudges.length > 0) {
-        const nudgeHtml = renderNudgeCards(nudges, 2);
-        const container = document.getElementById('messages');
-        const nudgeWrapper = document.createElement('div');
-        nudgeWrapper.className = 'nudge-wrapper';
-        nudgeWrapper.style.display = 'flex';
-        nudgeWrapper.style.flexDirection = 'column';
-        nudgeWrapper.style.alignItems = 'center';
-        nudgeWrapper.style.width = '100%';
-        nudgeWrapper.innerHTML = nudgeHtml;
-        container.appendChild(nudgeWrapper);
-        container.scrollTop = container.scrollHeight;
-      }
+    // Generate and display nudge cards
+    const nudges = generateNudges(data, preComputedStats);
+    if (nudges.length > 0) {
+      const nudgeHtml = renderNudgeCards(nudges, 2);
+      const container = document.getElementById('messages');
+      const nudgeWrapper = document.createElement('div');
+      nudgeWrapper.className = 'nudge-wrapper';
+      nudgeWrapper.style.display = 'flex';
+      nudgeWrapper.style.flexDirection = 'column';
+      nudgeWrapper.style.alignItems = 'center';
+      nudgeWrapper.style.width = '100%';
+      nudgeWrapper.innerHTML = nudgeHtml;
+      container.appendChild(nudgeWrapper);
+      container.scrollTop = container.scrollHeight;
     }
+
+    // Schedule idle nudge
+    scheduleIdleNudge((cardHtml) => {
+      const container = document.getElementById('messages');
+      const idleWrapper = document.createElement('div');
+      idleWrapper.className = 'nudge-wrapper';
+      idleWrapper.style.display = 'flex';
+      idleWrapper.style.flexDirection = 'column';
+      idleWrapper.style.alignItems = 'center';
+      idleWrapper.style.width = '100%';
+      idleWrapper.innerHTML = cardHtml;
+      container.appendChild(idleWrapper);
+      container.scrollTop = container.scrollHeight;
+    }, 45);
 
     // ── DKT: Upload data to backend for mastery tracking ──
     _uploadToDKT(data);
 
   } catch (err) {
-    console.error('[OliveBot] Data processing error:', err);
-    if (!currentDataHash) {
-      displayBotMessage(`❌ Error loading data: ${err.message}. Please check your JSON format.`);
-    }
-  }
-}
-
-function handleFileLoaded(data) {
-  processData(data);
-}
-
-async function fetchDynamicData() {
-  try {
-    const res = await fetch('/api/data');
-    if (res.ok) {
-      const data = await res.json();
-      processData(data);
-    }
-  } catch (e) {
-    console.warn('[OliveBot] Failed to fetch dynamic data:', e);
+    console.error('[OliveBot] File load error:', err);
+    displayBotMessage(`❌ Error loading data: ${err.message}. Please check your JSON file matches the expected format.`);
   }
 }
 
@@ -324,13 +276,6 @@ Analyze this quiz result alongside my overall mock history (in your pre-computed
 function init() {
   initFileUpload(handleFileLoaded, (msg) => displayBotMessage(msg));
 
-  // Dynamic fetch setup
-  fetchDynamicData();
-  setInterval(fetchDynamicData, 3 * 60 * 1000); // Check every 3 mins
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === 'visible') fetchDynamicData();
-  });
-
   document.getElementById('send-btn').addEventListener('click', handleSend);
 
   const chatInput = document.getElementById('chat-input');
@@ -372,22 +317,3 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-// [DEMO LAYER] Register inject hook at module level — available immediately when module loads.
-// Closures over mockData, currentDataHash, and processData from this module's scope.
-// Safe to delete alongside demo-inject.js and css/demo-inject.css
-window.__injectMockResult = function (resultObj) {
-  if (!mockData) return false; // Signal failure — main data not yet loaded
-  const updatedData = JSON.parse(JSON.stringify(mockData));
-  if (!Array.isArray(updatedData.results)) updatedData.results = [];
-  updatedData.results.push(resultObj);
-  if (updatedData.testids && Array.isArray(updatedData.testids)) {
-    if (resultObj.testid && !updatedData.testids.includes(resultObj.testid)) {
-      updatedData.testids.push(resultObj.testid);
-    }
-  }
-  currentDataHash = null; // force re-process
-  processData(updatedData);
-  console.log('[DemoPanel] Injected:', resultObj.testname || resultObj.testid);
-  return true;
-};

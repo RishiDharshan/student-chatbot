@@ -21,37 +21,13 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="/css/styles.css?v=3" />
+  <link rel="stylesheet" href="/css/styles.css" />
   <link rel="stylesheet" href="/css/training-hub.css" />
-  <!-- [DEMO LAYER] Delete this line + js/demo-inject.js + css/demo-inject.css to remove -->
-  <link rel="stylesheet" href="/css/demo-inject.css" />
 </head>
 
 <body>
 
   <div class="app" id="app">
-
-    <!-- ═══ Quick Stats Bar (populates after data load) ═══ -->
-    <div class="stats-bar" id="stats-bar" style="display:none;">
-      <div class="stats-bar-inner">
-        <span class="stats-bar-name" id="stats-bar-name"></span>
-        <div class="stats-bar-pills" id="stats-bar-pills"></div>
-        <button class="stats-bar-toggle" id="sidebar-toggle" title="Toggle analytics panel" onclick="document.getElementById('analytics-sidebar').classList.toggle('sidebar-open')">
-          📊 Dashboard
-        </button>
-      </div>
-    </div>
-
-    <!-- ═══ Analytics Sidebar ═══ -->
-    <aside class="analytics-sidebar" id="analytics-sidebar">
-      <div class="sidebar-header">
-        <span class="sidebar-title">📊 Quick Analytics</span>
-        <button class="sidebar-close" onclick="document.getElementById('analytics-sidebar').classList.remove('sidebar-open')" title="Close">✕</button>
-      </div>
-      <div class="sidebar-body" id="sidebar-body">
-        <!-- populated by populateSidebar() -->
-      </div>
-    </aside>
 
     <!-- ═══ Chat Area ═══ -->
     <main class="chat-area" id="chat-area">
@@ -151,9 +127,7 @@
   </div>
 
   <!-- App Entry Point -->
-  <script type="module" src="/js/app.js?v=3"></script>
-  <!-- [DEMO LAYER] Isolated inject panel — safe to delete -->
-  <script src="/js/demo-inject.js?v=3"></script>
+  <script type="module" src="/js/app.js"></script>
 
 </body>
 

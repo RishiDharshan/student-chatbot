@@ -212,16 +212,6 @@ async def dkt_health():
         "scheduler_running": _scheduler is not None and _scheduler.running if _scheduler else False,
     }
 
-# ── Dynamic Data Endpoint ────────────────────────────────────────────────────
-
-@app.get("/api/data")
-async def get_data():
-    """Serve the latest mock_test_data.json for dynamic fetching."""
-    data_path = os.path.join(os.path.dirname(__file__), "mock_test_data.json")
-    if os.path.exists(data_path):
-        return FileResponse(data_path)
-    return JSONResponse({"error": "Data not found"}, status_code=404)
-
 # ── Static Files (must be LAST — catch-all) ──────────────────────────────────
 
 @app.get("/")

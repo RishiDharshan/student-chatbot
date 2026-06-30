@@ -1,0 +1,275 @@
+{
+  "num_concepts": 37,
+  "concepts": {
+    "Analytical reasoning": {
+      "id": 1,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Averages and alligation": {
+      "id": 2,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Bar Graphs": {
+      "id": 3,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Blood relations": {
+      "id": 4,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Cloze test": {
+      "id": 5,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Coding decoding": {
+      "id": 6,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Comparison": {
+      "id": 7,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Correct Usage": {
+      "id": 8,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Datacomparision": {
+      "id": 9,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Direction Sense": {
+      "id": 10,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Fill in the blanks": {
+      "id": 11,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Grouping and Ordering": {
+      "id": 12,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Inequalities": {
+      "id": 13,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Interest": {
+      "id": 14,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Line Graphs": {
+      "id": 15,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Mensuration": {
+      "id": 16,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Number Series": {
+      "id": 17,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Number system": {
+      "id": 18,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "NumberLetter": {
+      "id": 19,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Others": {
+      "id": 20,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Parajumbles": {
+      "id": 21,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Partnerships": {
+      "id": 22,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Percentage Profit and Loss": {
+      "id": 23,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Pie Charts": {
+      "id": 24,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Probability": {
+      "id": 25,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Puzzles": {
+      "id": 26,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Ratio and proportion": {
+      "id": 27,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Reading Comprehension": {
+      "id": 28,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Sentence Joining": {
+      "id": 29,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Sentencecompletion": {
+      "id": 30,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Simplification": {
+      "id": 31,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Speed Time and Distance": {
+      "id": 32,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Syllogism": {
+      "id": 33,
+      "section": "lr",
+      "section_name": "Logical Reasoning"
+    },
+    "Tables": {
+      "id": 34,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Time and Work": {
+      "id": 35,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    },
+    "Vocabulary": {
+      "id": 36,
+      "section": "el",
+      "section_name": "English Language"
+    },
+    "Workpipescisterns": {
+      "id": 37,
+      "section": "qa",
+      "section_name": "Quantitative Aptitude"
+    }
+  },
+  "id_to_concept": {
+    "0": "__PAD__",
+    "1": "Analytical reasoning",
+    "2": "Averages and alligation",
+    "3": "Bar Graphs",
+    "4": "Blood relations",
+    "5": "Cloze test",
+    "6": "Coding decoding",
+    "7": "Comparison",
+    "8": "Correct Usage",
+    "9": "Datacomparision",
+    "10": "Direction Sense",
+    "11": "Fill in the blanks",
+    "12": "Grouping and Ordering",
+    "13": "Inequalities",
+    "14": "Interest",
+    "15": "Line Graphs",
+    "16": "Mensuration",
+    "17": "Number Series",
+    "18": "Number system",
+    "19": "NumberLetter",
+    "20": "Others",
+    "21": "Parajumbles",
+    "22": "Partnerships",
+    "23": "Percentage Profit and Loss",
+    "24": "Pie Charts",
+    "25": "Probability",
+    "26": "Puzzles",
+    "27": "Ratio and proportion",
+    "28": "Reading Comprehension",
+    "29": "Sentence Joining",
+    "30": "Sentencecompletion",
+    "31": "Simplification",
+    "32": "Speed Time and Distance",
+    "33": "Syllogism",
+    "34": "Tables",
+    "35": "Time and Work",
+    "36": "Vocabulary",
+    "37": "Workpipescisterns"
+  },
+  "section_groups": {
+    "lr": [
+      "Analytical reasoning",
+      "Blood relations",
+      "Coding decoding",
+      "Direction Sense",
+      "Grouping and Ordering",
+      "Inequalities",
+      "NumberLetter",
+      "Puzzles",
+      "Syllogism"
+    ],
+    "qa": [
+      "Averages and alligation",
+      "Bar Graphs",
+      "Comparison",
+      "Datacomparision",
+      "Interest",
+      "Line Graphs",
+      "Mensuration",
+      "Number Series",
+      "Number system",
+      "Others",
+      "Partnerships",
+      "Percentage Profit and Loss",
+      "Pie Charts",
+      "Probability",
+      "Ratio and proportion",
+      "Simplification",
+      "Speed Time and Distance",
+      "Tables",
+      "Time and Work",
+      "Workpipescisterns"
+    ],
+    "el": [
+      "Cloze test",
+      "Correct Usage",
+      "Fill in the blanks",
+      "Parajumbles",
+      "Reading Comprehension",
+      "Sentence Joining",
+      "Sentencecompletion",
+      "Vocabulary"
+    ]
+  }
+}

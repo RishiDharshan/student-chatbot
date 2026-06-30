@@ -1,0 +1,399 @@
+/**
+ * Training Hub — Retro 8-Bit RPG Stylesheet
+ * Pure CSS pixel-art mastery bars, scanline CRT overlay,
+ * Zelda-style stamina rendering. No Chart.js.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* ═══════════════════════════════════════════════════════════
+   Hub Overlay & Layout
+   ═══════════════════════════════════════════════════════════ */
+
+.training-hub-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  z-index: 90; /* Below quiz overlay (100), above chat */
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.training-hub-overlay.hub-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* CRT Scanline overlay */
+.training-hub-overlay::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 91;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+}
+
+/* ── Hub Header ─────────────────────────────────────────── */
+
+.hub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 28px;
+  border-bottom: 3px solid #1a1a1a;
+  position: sticky;
+  top: 0;
+  background: #0a0a0a;
+  z-index: 92;
+}
+
+.hub-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #00ff88;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  letter-spacing: 1px;
+}
+
+.hub-title span {
+  color: #666;
+  font-size: 10px;
+  margin-left: 12px;
+}
+
+.hub-close-btn {
+  background: none;
+  border: 2px solid #333;
+  color: #888;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hub-close-btn:hover {
+  border-color: #ff4444;
+  color: #ff4444;
+  text-shadow: 0 0 8px rgba(255, 68, 68, 0.5);
+}
+
+/* ── Stats Summary Row ──────────────────────────────────── */
+
+.hub-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 20px 28px;
+  border-bottom: 2px solid #1a1a1a;
+}
+
+.hub-stat-box {
+  background: #111;
+  border: 2px solid #222;
+  padding: 16px;
+  text-align: center;
+}
+
+.hub-stat-val {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.hub-stat-val.stat-green { color: #00ff88; text-shadow: 0 0 12px rgba(0,255,136,0.4); }
+.hub-stat-val.stat-yellow { color: #ffcc00; text-shadow: 0 0 12px rgba(255,204,0,0.4); }
+.hub-stat-val.stat-red { color: #ff4444; text-shadow: 0 0 12px rgba(255,68,68,0.4); }
+
+.hub-stat-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Retro 8-Bit Mastery Bars
+   ═══════════════════════════════════════════════════════════ */
+
+.hub-mastery-grid {
+  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hub-section-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: #00ff88;
+  text-shadow: 0 0 6px rgba(0,255,136,0.3);
+  margin: 16px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #222;
+}
+
+/* Individual mastery bar row */
+.mastery-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 60px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.mastery-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #aaa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The pixel bar container */
+.pixel-bar {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+}
+
+/* Each pixel segment in the bar */
+.pixel-seg {
+  width: 10%;
+  height: 100%;
+  background: #1a1a1a;
+  border: 1px solid #222;
+  transition: background 1.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 1.5s ease;
+  image-rendering: pixelated;
+}
+
+/* Filled segments — mastered (green) */
+.pixel-seg.filled-green {
+  background: #00ff88;
+  border-color: #00cc6a;
+  box-shadow: 0 0 6px rgba(0, 255, 136, 0.4), inset 0 -2px 0 rgba(0,0,0,0.2);
+}
+
+/* Filled segments — decaying (yellow) */
+.pixel-seg.filled-yellow {
+  background: #ffcc00;
+  border-color: #cc9900;
+  box-shadow: 0 0 6px rgba(255, 204, 0, 0.4), inset 0 -2px 0 rgba(0,0,0,0.2);
+}
+
+/* Filled segments — critical (red, flashing) */
+.pixel-seg.filled-red {
+  background: #ff4444;
+  border-color: #cc2222;
+  box-shadow: 0 0 8px rgba(255, 68, 68, 0.6), inset 0 -2px 0 rgba(0,0,0,0.2);
+  animation: pixelPulse 1s infinite alternate;
+}
+
+@keyframes pixelPulse {
+  0% { opacity: 1; box-shadow: 0 0 8px rgba(255,68,68,0.6); }
+  100% { opacity: 0.5; box-shadow: 0 0 16px rgba(255,68,68,0.9); }
+}
+
+/* Percentage text */
+.mastery-pct {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  text-align: right;
+}
+
+.mastery-pct.pct-green { color: #00ff88; }
+.mastery-pct.pct-yellow { color: #ffcc00; }
+.mastery-pct.pct-red { color: #ff4444; }
+
+/* ═══════════════════════════════════════════════════════════
+   Arena — Booster Quiz CTA
+   ═══════════════════════════════════════════════════════════ */
+
+.hub-arena {
+  margin: 24px 28px;
+  padding: 24px;
+  background: linear-gradient(135deg, #1a0a0a 0%, #0a0a1a 100%);
+  border: 2px solid #ff4444;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pixel corner decorations */
+.hub-arena::before,
+.hub-arena::after {
+  content: '◆';
+  position: absolute;
+  font-size: 8px;
+  color: #ff4444;
+  opacity: 0.5;
+}
+.hub-arena::before { top: 8px; left: 10px; }
+.hub-arena::after { bottom: 8px; right: 10px; }
+
+.arena-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255,68,68,0.5);
+  margin-bottom: 8px;
+}
+
+.arena-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.arena-concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.arena-concept-tag {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 4px 8px;
+  border: 1px solid #ff4444;
+  color: #ff6666;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.arena-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  background: #ff4444;
+  color: #0a0a0a;
+  border: none;
+  padding: 14px 28px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 0 #aa2222, 0 0 20px rgba(255,68,68,0.3);
+}
+
+.arena-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #aa2222, 0 0 30px rgba(255,68,68,0.5);
+}
+
+.arena-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #aa2222;
+}
+
+.arena-btn:disabled {
+  background: #333;
+  color: #666;
+  box-shadow: 0 4px 0 #222;
+  cursor: not-allowed;
+}
+
+/* ── No-issues state ────────────────────────────────────── */
+
+.hub-all-clear {
+  text-align: center;
+  padding: 60px 28px;
+}
+
+.hub-all-clear-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.hub-all-clear-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #00ff88;
+  text-shadow: 0 0 10px rgba(0,255,136,0.3);
+}
+
+/* ── Loading State ──────────────────────────────────────── */
+
+.hub-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 28px;
+  gap: 16px;
+}
+
+.hub-loading-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: #555;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Toggle Button (in chat header)
+   ═══════════════════════════════════════════════════════════ */
+
+.hub-toggle-btn {
+  background: none;
+  border: 1px solid #333;
+  color: #888;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+}
+
+.hub-toggle-btn:hover {
+  border-color: #00ff88;
+  color: #00ff88;
+}
+
+.hub-toggle-btn .hub-badge {
+  background: #ff4444;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .mastery-row {
+    grid-template-columns: 120px 1fr 48px;
+  }
+  .hub-title { font-size: 11px; }
+  .arena-btn { font-size: 8px; padding: 10px 20px; }
+  .hub-stats-row { grid-template-columns: repeat(2, 1fr); }
+}
