@@ -113,7 +113,21 @@ function processData(data) {
       const welcomeMsg = buildWelcomeMessage(data, preComputedStats);
       displayBotMessage(welcomeMsg);
 
-
+      // Generate and display nudge cards
+      const nudges = generateNudges(data, preComputedStats);
+      if (nudges.length > 0) {
+        const nudgeHtml = renderNudgeCards(nudges, 2);
+        const container = document.getElementById('messages');
+        const nudgeWrapper = document.createElement('div');
+        nudgeWrapper.className = 'nudge-wrapper';
+        nudgeWrapper.style.display = 'flex';
+        nudgeWrapper.style.flexDirection = 'column';
+        nudgeWrapper.style.alignItems = 'center';
+        nudgeWrapper.style.width = '100%';
+        nudgeWrapper.innerHTML = nudgeHtml;
+        container.appendChild(nudgeWrapper);
+        container.scrollTop = container.scrollHeight;
+      }
 
       // Schedule idle nudge
       scheduleIdleNudge((cardHtml) => {
