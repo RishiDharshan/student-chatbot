@@ -144,24 +144,6 @@ function processData(data) {
       }, 45);
     } else {
       console.log('[OliveBot] Background data sync complete.');
-      // The user injected new data via the Demo Panel (or re-uploaded).
-      // We should proactively trigger nudges based on the new data!
-      displayBotMessage("I noticed you just updated your mock test data! I've analyzed your latest performance. Here are some quick insights:");
-      
-      const nudges = generateNudges(data, preComputedStats);
-      if (nudges.length > 0) {
-        const nudgeHtml = renderNudgeCards(nudges, 2);
-        const container = document.getElementById('messages');
-        const nudgeWrapper = document.createElement('div');
-        nudgeWrapper.className = 'nudge-wrapper';
-        nudgeWrapper.style.display = 'flex';
-        nudgeWrapper.style.flexDirection = 'column';
-        nudgeWrapper.style.alignItems = 'center';
-        nudgeWrapper.style.width = '100%';
-        nudgeWrapper.innerHTML = nudgeHtml;
-        container.appendChild(nudgeWrapper);
-        container.scrollTop = container.scrollHeight;
-      }
     }
 
     // ── DKT: Upload data to backend for mastery tracking ──
