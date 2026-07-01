@@ -6,4 +6,3 @@ server.log
 scratch/
 test*.js
 test*.mjs
-public/
