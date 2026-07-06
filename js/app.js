@@ -8,6 +8,7 @@ import { preComputeStats } from './stats-engine.js';
 import { buildSystemPrompt } from './prompt-builder.js';
 import { sendChatMessage, sendSilentMessage, resetConversation, displayBotMessage, displayRejection, displayUserBubble, isBusy } from './chat.js';
 import { initFileUpload, populateSidebar, buildWelcomeMessage } from './sidebar.js';
+import { validateAndNormalize } from './data-adapter.js';
 import { initQuiz, startQuiz, onQuizComplete } from './quiz.js';
 import { generateNudges, renderNudgeCards, scheduleIdleNudge, cancelIdleNudge } from './nudge-engine.js';
 import { initTrainingHub, toggleHub, updateHubBadge } from './training-hub.js';
@@ -62,8 +63,13 @@ async function handleSend() {
   input.value = '';
   input.style.height = 'auto';
 
-  const systemPrompt = buildSystemPrompt(mockData, preComputedStats);
-  await sendChatMessage(text, systemPrompt);
+  try {
+    const systemPrompt = buildSystemPrompt(mockData, preComputedStats);
+    await sendChatMessage(text, systemPrompt);
+  } catch (err) {
+    console.error('[OliveBot] Send error:', err);
+    displayBotMessage(`⚠️ Something went wrong: ${err.message}. Please try refreshing the page.`);
+  }
 }
 
 /* ── Nudge Action Handler ────────────────────────────────── */
@@ -166,7 +172,10 @@ async function fetchDynamicData() {
     const res = await fetch('/api/data');
     if (res.ok) {
       const data = await res.json();
-      processData(data);
+      const normalized = validateAndNormalize(data);
+      if (normalized) {
+        processData(normalized);
+      }
     }
   } catch (e) {
     console.warn('[OliveBot] Failed to fetch dynamic data:', e);

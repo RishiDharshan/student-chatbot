@@ -28,7 +28,7 @@
 <!-- ══ DEMO INJECT TRIGGER ══ -->
 <button id="demo-inject-trigger" title="TL Demo: Inject Mock Test Data">
   <span class="di-icon">🧪</span>
-  Demo Panel
+  Input additional user data
   <span class="di-badge">TL</span>
 </button>
 
