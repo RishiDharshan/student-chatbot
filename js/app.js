@@ -167,20 +167,6 @@ function handleFileLoaded(data) {
   processData(data);
 }
 
-async function fetchDynamicData() {
-  try {
-    const res = await fetch('/api/data');
-    if (res.ok) {
-      const data = await res.json();
-      const normalized = validateAndNormalize(data);
-      if (normalized) {
-        processData(normalized);
-      }
-    }
-  } catch (e) {
-    console.warn('[OliveBot] Failed to fetch dynamic data:', e);
-  }
-}
 
 /** POST user data to DKT backend and update Training Hub badge */
 async function _uploadToDKT(data) {
@@ -315,12 +301,6 @@ Analyze this quiz result alongside my overall mock history (in your pre-computed
 function init() {
   initFileUpload(handleFileLoaded, (msg) => displayBotMessage(msg));
 
-  // Dynamic fetch setup
-  fetchDynamicData();
-  setInterval(fetchDynamicData, 3 * 60 * 1000); // Check every 3 mins
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === 'visible') fetchDynamicData();
-  });
 
   document.getElementById('send-btn').addEventListener('click', handleSend);
 
