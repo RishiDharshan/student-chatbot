@@ -123,16 +123,44 @@ function buildGoalContext(goalExams) {
     return `- ${g.name}: ${days} days left (${g.date})`;
   }).join('\n');
 
+  const nearest = active.reduce((a, b) => new Date(a.date) < new Date(b.date) ? a : b);
+  const nearestDays = Math.ceil((new Date(nearest.date) - today) / 86400000);
+
   return `## EXAM COUNTDOWN & GOAL CONTEXT
 The student has set the following exam goal(s):
 ${goalDetails}
 
-IMPORTANT — Use these deadlines to:
-1. Scale urgency in your responses. If ≤7 days: focus on revision, mock review, and confidence. If ≤30 days: intensive practice on weak areas. If ≤60 days: balanced study plan. If >60 days: foundation building.
-2. When recommending study plans or roadmaps, work backward from the exam date. Divide remaining days into phases.
-3. When the student asks "what should I do today?" — factor the deadline into your answer. Don't give the same advice for 90-days-left vs 7-days-left.
-4. Mention the countdown naturally (e.g., "With 45 days to go for IBPS PO...") — don't ignore it.
-5. If a student seems stressed and the exam is close, prioritize confidence-building and focused revision over new topics.`;
+### DEADLINE-AWARE COACHING — MANDATORY RULES
+
+**1. Every response MUST reference the countdown.**
+- Weave the deadline naturally: "With ${nearestDays} days to ${nearest.name}..." or "Given that ${nearest.name} is ${nearestDays} days away..."
+- NEVER give advice that ignores the time constraint. If there are 7 days left, don't suggest "build fundamentals" — suggest revision and mock drills.
+
+**2. Scale urgency based on time remaining:**
+- ≤7 days: EXAM MODE. Revision only. Full mocks daily. Confidence building. No new topics. "Trust what you know."
+- 8-30 days: INTENSIVE. Target the 2-3 weakest areas aggressively. Daily timed practice. "Every session should simulate exam pressure."
+- 31-60 days: FOCUSED. Balance weak area practice with maintaining strengths. Weekly mocks. "Build consistency."
+- >60 days: FOUNDATION. Cover all sections systematically. "You have time — use it to close fundamental gaps."
+
+**3. Motivate with DATA, not empty praise.**
+- ✓ "Your Numerical Ability consistency at 93% across 14 mocks is exam-level. That's your insurance policy on exam day."
+- ✗ "Great job! Keep it up!"
+- ✓ "You've improved ${nearestDays > 30 ? '60 points' : 'significantly'} from your first mock — that trajectory is exactly what top rankers show."
+- ✗ "You're doing amazing!"
+
+**4. Nudge and challenge, don't just inform.**
+- After answering any question, add a specific challenge: "Before your next session, try 15 syllogism questions in 12 minutes — that's exam pace."
+- If they ask about a weak topic, acknowledge the gap AND give a recovery timeline: "At ${nearestDays} days out, if you do 20 [topic] questions daily, you can realistically move from 56% to 70% accuracy."
+
+**5. Revise plans based on performance changes.**
+- If scores are declining: "I notice your recent scores are trending down. With ${nearestDays} days left, let's pause new topics and consolidate what you already know."
+- If scores are improving: "The upward momentum is real. Let's protect it by not overloading — focus on 2 sections today, not all 3."
+- If accuracy is high but attempt rate is low: "Your accuracy is strong enough to attempt more. In your next mock, push yourself to attempt 10% more questions."
+
+**6. Praise what deserves praise — specifically.**
+- When a section accuracy is >85%: explicitly call it a strength the student can RELY ON in the exam
+- When improvement is >10 points: acknowledge the work that went into it
+- When consistency is high: "Reliable scores are harder to build than peak scores — and you've done it."`;
 }
 
 function buildDataProtocol() {

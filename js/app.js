@@ -241,6 +241,9 @@ async function _checkGoalsOnLoad(data, stats) {
       const nudgeMsg = buildCountdownNudge(nextGoal, stats, data);
       displayBotMessage(nudgeMsg);
       _showCountdownBanner(nextGoal);
+
+      // Auto-trigger a daily study plan from LLM
+      setTimeout(() => _triggerStudyPlan(nextGoal, 'daily'), 500);
     }
 
     // If all goals have expired, remove them and ask for new
@@ -292,9 +295,10 @@ async function _handleGoalResponse(text) {
     saveGoals(mockData, goals);
     _goalPendingConfirm = null;
 
-    const days = daysUntil(goal.date);
-    displayBotMessage(`✅ **Goal set!** ${goal.name} — **${days} days** to go. I'll keep track and help you plan around this deadline.\n\nEvery time you come back, I'll show you a countdown and what to focus on. Let's make every day count! 🎯`);
     _showCountdownBanner(goal);
+
+    // Auto-trigger full study schedule from LLM
+    await _triggerStudyPlan(goal, 'full');
     return true;
   }
 
@@ -340,6 +344,96 @@ async function _handleGoalResponse(text) {
 
   // Couldn't parse — let it fall through to normal chat
   return false;
+}
+
+/**
+ * Send a silent message to the LLM to auto-generate a study plan.
+ * @param {Object} goal  - { name, date }
+ * @param {'full'|'daily'} mode - 'full' = first-time schedule, 'daily' = returning user nudge
+ */
+async function _triggerStudyPlan(goal, mode) {
+  if (!mockData || !preComputedStats) return;
+
+  const days = daysUntil(goal.date);
+  const s = preComputedStats.summary || {};
+  const sa = preComputedStats.section_analysis || {};
+
+  // Build section performance summary for the prompt
+  const sectionLines = Object.entries(sa)
+    .map(([name, sec]) => `  - ${name}: ${sec.avg_accuracy}% accuracy, ${sec.avg_percentile}% percentile`)
+    .join('\n');
+
+  let silentPrompt;
+
+  if (mode === 'full') {
+    silentPrompt = `The student just confirmed their exam goal: ${goal.name} on ${goal.date} (${days} days from now).
+
+Here is their current performance:
+- Total mocks: ${s.total_mocks || 0}
+- Average score: ${s.avg_score || 'N/A'}
+- Average percentile: ${s.avg_percentile || 'N/A'}%
+- Best score: ${s.best_score || 'N/A'}
+- Score trend: ${s.improvement_points > 0 ? 'improving (+' + s.improvement_points + ' pts)' : s.improvement_points < 0 ? 'declining (' + s.improvement_points + ' pts)' : 'stable'}
+Section breakdown:
+${sectionLines || '  No section data available'}
+
+Generate a COMPLETE personalized study schedule working backward from the exam date. You MUST:
+
+1. **Open with motivation**: Acknowledge their commitment to setting a goal. Reference a specific strength from their data (e.g., "Your Numerical Ability at 93% is already exam-ready — that's your anchor"). Do NOT use generic phrases like "Great job!".
+
+2. **Phase-based roadmap**: Divide the ${days} remaining days into 3-4 phases using the ROADMAP tag:
+   - Each phase should target specific weak areas from their data
+   - Phases should be progressively more intensive as the exam approaches
+   - The final phase (last 7-10 days) should be revision + full mocks only
+
+3. **Weekly breakdown**: For the current week, give a day-by-day plan with:
+   - Specific topics to cover (from their weak areas)
+   - How many practice questions per topic
+   - Time allocation per section
+
+4. **Praise what deserves praise**: If any section is above 85%, explicitly acknowledge it: "Your [section] is a genuine strength — you can afford to reduce time here and redirect it to [weak section]."
+
+5. **Be honest about gaps**: If any section is below 60%, say so directly. Don't soften it. Give a concrete recovery plan.
+
+6. **End with today's one task**: One specific, actionable thing they should do RIGHT NOW.
+
+Use ROADMAP and CHART tags for visual output. Be the coach who knows their data inside out.`;
+  } else {
+    // Daily mode — shorter, focused on today
+    silentPrompt = `The student is returning today. Their exam goal is ${goal.name} on ${goal.date} — **${days} days remaining**.
+
+Their current stats:
+- Mocks completed: ${s.total_mocks || 0}
+- Avg score: ${s.avg_score || 'N/A'}, Best: ${s.best_score || 'N/A'}
+- Avg percentile: ${s.avg_percentile || 'N/A'}%
+- Trend: ${s.improvement_points > 0 ? 'improving' : s.improvement_points < 0 ? 'declining' : 'stable'}
+Sections:
+${sectionLines || '  No data'}
+
+Generate a FOCUSED daily coaching message. You MUST:
+
+1. **Open with context**: "With ${days} days to ${goal.name}..." — make the countdown feel real but not anxiety-inducing.
+
+2. **Acknowledge progress**: If their trend is positive, say so with a specific number: "Your last 3 mocks show a clear upward trend — you've improved ${Math.abs(s.improvement_points || 0)} points since your first mock."
+
+3. **Today's focus plan**: Give exactly 2-3 concrete actions for TODAY:
+   - What section to practice (choose their weakest)
+   - How many questions (specific number: "20 questions", not "some questions")
+   - Time limit ("Set a 30-minute timer")
+
+4. **Motivational nudge**: End with something that acknowledges their effort without being cheesy. Examples:
+   - "The fact that you're here today, with ${days} days left, puts you ahead of most aspirants."
+   - "Your consistency is the hardest part — and you've shown up."
+   
+Do NOT generate a full roadmap. Keep it to 150 words max. Be warm but direct.`;
+  }
+
+  try {
+    const systemPrompt = buildSystemPrompt(mockData, preComputedStats);
+    await sendSilentMessage(silentPrompt, systemPrompt);
+  } catch (err) {
+    console.error('[GoalTracker] Study plan generation failed:', err);
+  }
 }
 
 /**
