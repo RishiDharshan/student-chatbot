@@ -1,0 +1,152 @@
+{
+  "rbiassistantp": {
+    "name": "RBI Assistant Prelims",
+    "estimated_date": "2026-04-11",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "rbiassistantm": {
+    "name": "RBI Assistant Mains",
+    "estimated_date": "2026-06-07",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "sbipop": {
+    "name": "SBI PO Prelims",
+    "estimated_date": "2026-08-15",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "sbipom": {
+    "name": "SBI PO Mains",
+    "estimated_date": "2026-09-20",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "sbiclerkp": {
+    "name": "SBI Clerk Prelims",
+    "estimated_date": "2026-09-15",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "sbiclerkm": {
+    "name": "SBI Clerk Mains",
+    "estimated_date": "2026-11-15",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "ibpspop": {
+    "name": "IBPS PO Prelims",
+    "estimated_date": "2026-08-22",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "ibpspom": {
+    "name": "IBPS PO Mains",
+    "estimated_date": "2026-10-04",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "ibpsclerkp": {
+    "name": "IBPS Clerk Prelims",
+    "estimated_date": "2026-10-10",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "ibpsclerkm": {
+    "name": "IBPS Clerk Mains",
+    "estimated_date": "2026-12-27",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "rbigradeb": {
+    "name": "RBI Grade B Phase 1",
+    "estimated_date": "2026-06-13",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "rbigradeb2": {
+    "name": "RBI Grade B Phase 2",
+    "estimated_date": "2026-07-25",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "nabardgradea": {
+    "name": "NABARD Grade A",
+    "estimated_date": "2026-09-15",
+    "cycle": "2026",
+    "track": "banking"
+  },
+  "ssccgl": {
+    "name": "SSC CGL Tier 1",
+    "estimated_date": "2026-08-15",
+    "cycle": "2026",
+    "track": "ssc"
+  },
+  "sscchsl": {
+    "name": "SSC CHSL Tier 1",
+    "estimated_date": "2026-08-01",
+    "cycle": "2026",
+    "track": "ssc"
+  },
+  "sscmts": {
+    "name": "SSC MTS",
+    "estimated_date": "2026-10-01",
+    "cycle": "2026",
+    "track": "ssc"
+  },
+  "rrbntpc": {
+    "name": "RRB NTPC CBT 2",
+    "estimated_date": "2026-07-10",
+    "cycle": "2026",
+    "track": "railways"
+  },
+  "rrbgroupd": {
+    "name": "RRB Group D",
+    "estimated_date": "2026-11-01",
+    "cycle": "2026",
+    "track": "railways"
+  },
+  "cat": {
+    "name": "CAT",
+    "estimated_date": "2026-11-29",
+    "cycle": "2026",
+    "track": "mba"
+  },
+  "xat": {
+    "name": "XAT",
+    "estimated_date": "2027-01-03",
+    "cycle": "2027",
+    "track": "mba"
+  },
+  "snap": {
+    "name": "SNAP",
+    "estimated_date": "2026-12-15",
+    "cycle": "2026",
+    "track": "mba"
+  },
+  "nmat": {
+    "name": "NMAT",
+    "estimated_date": "2026-10-15",
+    "cycle": "2026",
+    "track": "mba"
+  },
+  "iift": {
+    "name": "IIFT",
+    "estimated_date": "2026-12-05",
+    "cycle": "2026",
+    "track": "mba"
+  },
+  "upscprelims": {
+    "name": "UPSC CSE Prelims",
+    "estimated_date": "2026-05-24",
+    "cycle": "2026",
+    "track": "upsc"
+  },
+  "upscmains": {
+    "name": "UPSC CSE Mains",
+    "estimated_date": "2026-08-21",
+    "cycle": "2026",
+    "track": "upsc"
+  }
+}

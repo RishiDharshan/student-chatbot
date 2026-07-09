@@ -8,15 +8,26 @@ import { preComputeStats } from './stats-engine.js';
 import { buildSystemPrompt } from './prompt-builder.js';
 import { sendChatMessage, sendSilentMessage, resetConversation, displayBotMessage, displayRejection, displayUserBubble, isBusy } from './chat.js';
 import { initFileUpload, populateSidebar, buildWelcomeMessage } from './sidebar.js';
-import { validateAndNormalize } from './data-adapter.js';
+import { validateAndNormalize, getExamName } from './data-adapter.js';
 import { initQuiz, startQuiz, onQuizComplete } from './quiz.js';
 import { generateNudges, renderNudgeCards, scheduleIdleNudge, cancelIdleNudge } from './nudge-engine.js';
 import { initTrainingHub, toggleHub, updateHubBadge } from './training-hub.js';
+import {
+  getGoals, saveGoals, hasGoals,
+  getNextUpcomingGoal, getExpiredGoals, getActiveGoals,
+  buildCountdownNudge, buildExpiredMessage, buildGoalAskMessage,
+  autoDetectExam, lookupExamDate, buildDateConfirmation, daysUntil,
+} from './goal-manager.js';
 
 /* ── State ───────────────────────────────────────────────── */
 
 let mockData = null;
 let preComputedStats = null;
+
+/* ── Goal State ──────────────────────────────────────────── */
+
+/** Tracks whether we're waiting for the user to confirm an exam date */
+let _goalPendingConfirm = null;  // { name, estimated_date, cycle, track } or null
 
 /* ── Out-of-Scope Detector ───────────────────────────────── */
 
@@ -49,6 +60,17 @@ async function handleSend() {
   if (!mockData) {
     displayBotMessage('⚠️ Please upload your mock test JSON file first using the upload button above.');
     return;
+  }
+
+  // ── Goal confirmation interceptor ──────────────────────
+  if (_goalPendingConfirm) {
+    const handled = await _handleGoalResponse(text);
+    if (handled) {
+      input.value = '';
+      input.style.height = 'auto';
+      return;
+    }
+    // If not handled, fall through to normal chat
   }
 
   if (isOutOfScope(text)) {
@@ -118,6 +140,9 @@ function processData(data) {
       // Display the welcome message
       const welcomeMsg = buildWelcomeMessage(data, preComputedStats);
       displayBotMessage(welcomeMsg);
+
+      // ── Goal Tracker: check goals on load ─────────────────
+      _checkGoalsOnLoad(data, preComputedStats);
 
       // Generate and display nudge cards
       const nudges = generateNudges(data, preComputedStats);
@@ -190,6 +215,189 @@ async function _uploadToDKT(data) {
     console.warn('[DKT] Backend not available:', err.message);
   }
 }
+
+/* ── Goal Tracker Helpers ────────────────────────────────── */
+
+/**
+ * Called once on initial data load. Checks for existing goals,
+ * shows countdown / expired / ask messages accordingly.
+ */
+async function _checkGoalsOnLoad(data, stats) {
+  const goals = getGoals(data);
+
+  if (goals.length > 0) {
+    // Attach to in-memory data for prompt builder
+    data.goal_exams = goals;
+
+    // Check for expired goals
+    const expired = getExpiredGoals(goals);
+    for (const g of expired) {
+      displayBotMessage(buildExpiredMessage(g));
+    }
+
+    // Check for upcoming goals — show countdown for the nearest one
+    const nextGoal = getNextUpcomingGoal(goals);
+    if (nextGoal) {
+      const nudgeMsg = buildCountdownNudge(nextGoal, stats, data);
+      displayBotMessage(nudgeMsg);
+      _showCountdownBanner(nextGoal);
+    }
+
+    // If all goals have expired, remove them and ask for new
+    if (expired.length > 0 && !nextGoal) {
+      // Keep only non-expired goals (should be empty here)
+      const active = getActiveGoals(goals);
+      saveGoals(data, active);
+    }
+  } else {
+    // No goals — ask the user conversationally
+    const examName = data.coursename ? getExamName(data.coursename) : 'your target exam';
+    displayBotMessage(buildGoalAskMessage(examName));
+
+    // Auto-detect and prepare confirmation
+    const detected = await autoDetectExam(data);
+    if (detected) {
+      _goalPendingConfirm = detected;
+      // Show confirmation after a small delay so the ask message renders first
+      setTimeout(() => {
+        displayBotMessage(buildDateConfirmation(detected));
+      }, 800);
+    }
+  }
+}
+
+/**
+ * Handle the user's response when we're waiting for goal confirmation.
+ * Returns true if the response was handled (consumed), false to pass through.
+ */
+async function _handleGoalResponse(text) {
+  const lower = text.toLowerCase().trim();
+
+  // Affirmative responses
+  if (/^(yes|yeah|yep|sure|confirm|ok|okay|y|set it|go ahead|do it)$/i.test(lower)) {
+    displayUserBubble(text);
+    const goal = {
+      name: _goalPendingConfirm.name,
+      exam_key: _goalPendingConfirm.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      date: _goalPendingConfirm.estimated_date,
+      confirmed: true,
+      set_at: new Date().toISOString(),
+    };
+    const goals = getGoals(mockData);
+    // Avoid duplicates
+    const existing = goals.find(g => g.name === goal.name);
+    if (!existing) {
+      goals.push(goal);
+    }
+    saveGoals(mockData, goals);
+    _goalPendingConfirm = null;
+
+    const days = daysUntil(goal.date);
+    displayBotMessage(`✅ **Goal set!** ${goal.name} — **${days} days** to go. I'll keep track and help you plan around this deadline.\n\nEvery time you come back, I'll show you a countdown and what to focus on. Let's make every day count! 🎯`);
+    _showCountdownBanner(goal);
+    return true;
+  }
+
+  // User wants to set a different exam
+  if (/different|change|no|nope|not this|another|wrong/i.test(lower)) {
+    displayUserBubble(text);
+    _goalPendingConfirm = null;
+    displayBotMessage('No problem! Tell me the exam name you\'re targeting (e.g., "IBPS PO Prelims", "SBI Clerk", "CAT") and I\'ll look up the date for you.');
+    return true;
+  }
+
+  // User typed a date (e.g., "October 15, 2026" or "2026-10-15" or "15/10/2026")
+  const dateMatch = _parseDate(lower);
+  if (dateMatch) {
+    displayUserBubble(text);
+    const name = _goalPendingConfirm ? _goalPendingConfirm.name : 'Exam';
+    const goal = {
+      name,
+      exam_key: name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      date: dateMatch,
+      confirmed: true,
+      set_at: new Date().toISOString(),
+    };
+    const goals = getGoals(mockData);
+    goals.push(goal);
+    saveGoals(mockData, goals);
+    _goalPendingConfirm = null;
+
+    const days = daysUntil(goal.date);
+    displayBotMessage(`✅ **Goal set!** ${goal.name} on **${new Date(dateMatch).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}** — **${days} days** to go. I'll track your progress against this deadline! 🎯`);
+    _showCountdownBanner(goal);
+    return true;
+  }
+
+  // User typed an exam name — look it up
+  const examEntry = await lookupExamDate(text);
+  if (examEntry) {
+    _goalPendingConfirm = examEntry;
+    displayUserBubble(text);
+    displayBotMessage(buildDateConfirmation(examEntry));
+    return true;
+  }
+
+  // Couldn't parse — let it fall through to normal chat
+  return false;
+}
+
+/**
+ * Show the slim countdown banner at the top of the chat area.
+ */
+function _showCountdownBanner(goal) {
+  // Remove existing banner if any
+  const existing = document.getElementById('goal-countdown-banner');
+  if (existing) existing.remove();
+
+  const days = daysUntil(goal.date);
+  if (days <= 0) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'goal-countdown-banner';
+  banner.className = 'goal-banner';
+
+  let urgencyClass = '';
+  if (days <= 7) urgencyClass = 'goal-banner--critical';
+  else if (days <= 30) urgencyClass = 'goal-banner--warning';
+
+  banner.classList.add(urgencyClass || 'goal-banner--normal');
+  banner.innerHTML = `📅 <strong>${goal.name}</strong> — <span class="goal-days">${days} day${days !== 1 ? 's' : ''}</span> left`;
+
+  const messagesContainer = document.getElementById('messages');
+  messagesContainer.parentElement.insertBefore(banner, messagesContainer);
+}
+
+/**
+ * Try to parse a date from user text.
+ * Supports: YYYY-MM-DD, DD/MM/YYYY, "October 15 2026", "15 Oct 2026"
+ * Returns ISO date string or null.
+ */
+function _parseDate(text) {
+  // ISO format
+  const isoMatch = text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const d = new Date(isoMatch[0]);
+    if (!isNaN(d)) return isoMatch[0];
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  const slashMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (slashMatch) {
+    const d = new Date(`${slashMatch[3]}-${slashMatch[2].padStart(2,'0')}-${slashMatch[1].padStart(2,'0')}`);
+    if (!isNaN(d)) return d.toISOString().split('T')[0];
+  }
+
+  // Natural language: "October 15, 2026" or "15 October 2026"
+  try {
+    const d = new Date(text);
+    if (!isNaN(d) && d.getFullYear() > 2020) return d.toISOString().split('T')[0];
+  } catch { /* ignore */ }
+
+  return null;
+}
+
+
 
 /* ── Quiz Complete Handler ───────────────────────────────── */
 

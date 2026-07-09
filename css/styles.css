@@ -1091,3 +1091,79 @@ html, body {
   color: var(--text-tertiary);
 }
 
+/* ── Goal Countdown Banner ──────────────────────────────── */
+
+.goal-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  border-bottom: 1px solid var(--border-color);
+  animation: goalBannerSlide 0.4s ease-out;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.goal-banner strong {
+  font-weight: 600;
+}
+
+.goal-days {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Normal (>30 days) */
+.goal-banner--normal {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(16, 185, 129, 0.08));
+  color: var(--accent-blue);
+}
+.goal-banner--normal .goal-days {
+  color: var(--accent-green);
+}
+
+/* Warning (≤30 days) */
+.goal-banner--warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(234, 179, 8, 0.06));
+  color: var(--accent-amber);
+}
+.goal-banner--warning .goal-days {
+  color: var(--accent-amber);
+}
+
+/* Critical (≤7 days) */
+.goal-banner--critical {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(220, 38, 38, 0.06));
+  color: var(--accent-red);
+  animation: goalBannerSlide 0.4s ease-out, goalPulse 2s ease-in-out infinite;
+}
+.goal-banner--critical .goal-days {
+  color: var(--accent-red);
+}
+
+@keyframes goalBannerSlide {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes goalPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+@media (max-width: 768px) {
+  .goal-banner {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}

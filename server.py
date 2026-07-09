@@ -233,6 +233,7 @@ app.mount("/js", StaticFiles(directory="js"), name="js")
 app.mount("/css", StaticFiles(directory="css"), name="css")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/public", StaticFiles(directory="public"), name="public")
+app.mount("/data", StaticFiles(directory="data"), name="data")
 
 # ── Run ──────────────────────────────────────────────────────────────────────
 

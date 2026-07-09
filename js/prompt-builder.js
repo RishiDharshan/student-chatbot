@@ -47,9 +47,10 @@ export function buildSystemPrompt(userData, stats) {
 
   return [
     buildIdentity(),
-    buildStudentContext(displayName, firstName, examName, totalMocks, dateRange, daysLeft),
+    buildStudentContext(displayName, firstName, examName, totalMocks, dateRange, daysLeft, userData.goal_exams),
     buildDataProtocol(),
     buildPreComputedStats(stats),
+    buildGoalContext(userData.goal_exams),
     _masteryContext,  // DKT mastery context (empty string if not available)
     buildExamContext(),
     buildAnalysisFramework(),
@@ -85,14 +86,53 @@ REFUSE all other queries with:
 "I'm your exam performance coach — I can only help with your preparation, scores, study plans, and exam strategy."`;
 }
 
-function buildStudentContext(displayName, firstName, examName, totalMocks, dateRange, daysLeft) {
+function buildStudentContext(displayName, firstName, examName, totalMocks, dateRange, daysLeft, goalExams) {
   const daysLine = daysLeft !== 'N/A' ? `Days Until Exam: ${daysLeft}` : '';
+
+  // Goal countdown lines
+  let goalLines = '';
+  if (goalExams && goalExams.length > 0) {
+    const today = new Date();
+    goalLines = goalExams
+      .filter(g => new Date(g.date) > today)
+      .map(g => {
+        const d = Math.ceil((new Date(g.date) - today) / 86400000);
+        return `🎯 Goal: ${g.name} — ${d} days remaining (${g.date})`;
+      })
+      .join('\n');
+  }
+
   return `## STUDENT CONTEXT
 Name: ${displayName} (address as ${firstName})
 Target Exam: ${examName}
 ${daysLine}
+${goalLines}
 Total Mocks: ${totalMocks}
 Date Range: ${dateRange.from} to ${dateRange.to}`.trim();
+}
+
+function buildGoalContext(goalExams) {
+  if (!goalExams || goalExams.length === 0) return '';
+
+  const today = new Date();
+  const active = goalExams.filter(g => new Date(g.date) > today);
+  if (active.length === 0) return '';
+
+  const goalDetails = active.map(g => {
+    const days = Math.ceil((new Date(g.date) - today) / 86400000);
+    return `- ${g.name}: ${days} days left (${g.date})`;
+  }).join('\n');
+
+  return `## EXAM COUNTDOWN & GOAL CONTEXT
+The student has set the following exam goal(s):
+${goalDetails}
+
+IMPORTANT — Use these deadlines to:
+1. Scale urgency in your responses. If ≤7 days: focus on revision, mock review, and confidence. If ≤30 days: intensive practice on weak areas. If ≤60 days: balanced study plan. If >60 days: foundation building.
+2. When recommending study plans or roadmaps, work backward from the exam date. Divide remaining days into phases.
+3. When the student asks "what should I do today?" — factor the deadline into your answer. Don't give the same advice for 90-days-left vs 7-days-left.
+4. Mention the countdown naturally (e.g., "With 45 days to go for IBPS PO...") — don't ignore it.
+5. If a student seems stressed and the exam is close, prioritize confidence-building and focused revision over new topics.`;
 }
 
 function buildDataProtocol() {
