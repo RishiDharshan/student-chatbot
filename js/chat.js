@@ -10,6 +10,7 @@ import { renderMessage } from './renderer.js';
 
 let conversationHistory = [];
 let isWaiting = false;
+let outOfScopeCount = 0;
 
 /* ── Public API ──────────────────────────────────────────── */
 
@@ -28,10 +29,17 @@ export async function sendChatMessage(text, systemPrompt) {
 
   try {
     conversationHistory.push({ role: 'user', content: text });
-    const reply = await callApi(systemPrompt);
+    let reply = await callApi(systemPrompt);
 
     removeTypingIndicator();
-    appendBotMessage(reply);
+
+    if (reply.includes("I'm your exam performance coach") || reply.includes("I can only help with your preparation")) {
+      displayRejection(reply);
+    } else {
+      outOfScopeCount = 0;
+      appendBotMessage(reply);
+    }
+    
     conversationHistory.push({ role: 'assistant', content: reply });
   } catch (err) {
     if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === 'user') {
@@ -51,7 +59,14 @@ export function displayBotMessage(text) {
 }
 
 export function displayRejection(text) {
-  appendBotMessage(text, true);
+  outOfScopeCount++;
+  if (outOfScopeCount >= 3) {
+    const memeText = "I'm your exam performance coach — I can only help with your preparation, scores, study plans, and exam strategy.<br><br><img src=\"/assets/meme.png\" style=\"max-width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);\"><br><br><i>Strictly exams only!</i>";
+    appendBotMessage(memeText, true);
+    outOfScopeCount = 0;
+  } else {
+    appendBotMessage(text, true);
+  }
 }
 
 export function displayUserBubble(text) {

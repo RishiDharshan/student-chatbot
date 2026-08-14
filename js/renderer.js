@@ -162,28 +162,47 @@ function renderInlineChart(id, type, labelsJson, dataJson, colorsJson) {
 
 /* ── ROADMAP Block ───────────────────────────────────────── */
 
+/**
+ * Attempt to parse a raw ROADMAP tag string into a weeks array.
+ * Used by both the renderer and app.js (via the roadmap event).
+ * @param {string} jsonRaw — the weeks JSON string (possibly HTML-entity-encoded)
+ * @returns {Array|null}
+ */
+export function parseRoadmapWeeks(jsonRaw) {
+  try {
+    const jsonStr = jsonRaw.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    const weeks = JSON.parse(jsonStr);
+    return Array.isArray(weeks) ? weeks : null;
+  } catch {
+    return null;
+  }
+}
+
 function renderRoadmapBlocks(html) {
   return html.replace(/<ROADMAP weeks=('|&#39;|")([^'"]+)\1\s*\/>/g, (_, quote, jsonRaw) => {
-    try {
-      const jsonStr = jsonRaw.replace(/&quot;/g, '"');
-      const weeks = JSON.parse(jsonStr);
-      const cards = weeks
-        .map(w => {
-          const priorityClass =
-            w.priority === 'critical' ? 'critical' : w.priority === 'attention' ? 'attention' : '';
-          const tags = (w.tags || []).map(t => `<span class="week-tag">${esc(t)}</span>`).join('');
-          return `
+    const weeks = parseRoadmapWeeks(jsonRaw);
+    if (!weeks) return '';
+
+    // Fire a custom DOM event so app.js can save the schedule
+    // (deferred to next tick so the HTML is already inserted into the DOM)
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('olivebot:roadmap', { detail: { weeks } }));
+    }, 0);
+
+    const cards = weeks
+      .map(w => {
+        const priorityClass =
+          w.priority === 'critical' ? 'critical' : w.priority === 'attention' ? 'attention' : '';
+        const tags = (w.tags || []).map(t => `<span class="week-tag">${esc(t)}</span>`).join('');
+        return `
             <div class="week-card ${priorityClass}">
               <div class="week-title">Week ${esc(w.week)}: ${esc(w.theme)}</div>
               ${w.focus ? `<div class="week-focus">${esc(w.focus)}</div>` : ''}
               <div class="week-tags">${tags}</div>
             </div>`;
-        })
-        .join('');
-      return `<div class="roadmap">${cards}</div>`;
-    } catch {
-      return '';
-    }
+      })
+      .join('');
+    return `<div class="roadmap">${cards}</div>`;
   });
 }
 

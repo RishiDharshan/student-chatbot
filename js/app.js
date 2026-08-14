@@ -18,6 +18,14 @@ import {
   buildCountdownNudge, buildExpiredMessage, buildGoalAskMessage,
   autoDetectExam, lookupExamDate, buildDateConfirmation, daysUntil,
 } from './goal-manager.js';
+import {
+  parseRoadmapToSchedule,
+  saveSchedule, loadSchedule, clearSchedule,
+  getTodayEntry, getNextPendingEntry,
+  markEntryComplete, detectOverdueEntries, stampOverdueEntries,
+  isCompletionIntent, isNegativeIntent, parsePartialCompletion, redistributePartialEntry,
+  buildDailyCheckinMessage, buildScheduleNudgeMessage, buildOverdueNudgeMessage, buildCompletionConfirmMessage,
+} from './schedule-engine.js';
 
 /* ── State ───────────────────────────────────────────────── */
 
@@ -28,6 +36,26 @@ let preComputedStats = null;
 
 /** Tracks whether we're waiting for the user to confirm an exam date */
 let _goalPendingConfirm = null;  // { name, estimated_date, cycle, track } or null
+
+/* ── Schedule State ──────────────────────────────────────── */
+
+/** In-memory reference to the active schedule (mirrors localStorage) */
+let _currentSchedule = null;
+
+/** Prevents double-firing completion handler when user says "done" */
+let _scheduleCompletionHandled = false;
+
+/**
+ * When the bot has asked "did you complete today's task?", this holds the entry.
+ * Set to the pending schedule entry, null when not in check-in mode.
+ */
+let _checkInPendingEntry = null;
+
+/**
+ * Sub-state: true when the bot has asked a follow-up "how much did you cover?"
+ * and is waiting for the student's coverage reply.
+ */
+let _checkInAwaitingCoverage = false;
 
 /* ── Out-of-Scope Detector ───────────────────────────────── */
 
@@ -71,6 +99,117 @@ async function handleSend() {
       return;
     }
     // If not handled, fall through to normal chat
+  }
+
+  // ── Daily Check-In interceptor ───────────────────────
+  if (_checkInPendingEntry) {
+    displayUserBubble(text);
+    input.value = '';
+    input.style.height = 'auto';
+    const userId = _getUserId(mockData);
+
+    // Sub-state: waiting for coverage amount after user said "no"
+    if (_checkInAwaitingCoverage) {
+      const parsed = parsePartialCompletion(text);
+      const pct = parsed.percentage;
+
+      if (pct === null && parsed.topics.length === 0) {
+        // Couldn't understand response — ask again
+        displayBotMessage(`Hmm, I didn't catch that. Tell me how much you covered — like **"50%"**, **"half"**, or **"0%"** if you haven't started.`);
+        return;
+      }
+
+      const coveragePct = pct !== null ? pct : 30; // topic-only reply → assume ~30%
+      _currentSchedule = redistributePartialEntry(userId, _currentSchedule, _checkInPendingEntry, coveragePct);
+
+      const remaining = 100 - coveragePct;
+      const nextEntry = getNextPendingEntry(_currentSchedule, _checkInPendingEntry.index);
+      let msg = `Got it — **${coveragePct}% done** on ${_checkInPendingEntry.theme}. `;
+
+      if (remaining > 0) {
+        msg += `I've carried the remaining **${remaining}%** forward into your next ${remaining >= 50 ? '2 days' : 'day'} so you don't fall behind. `;
+      } else {
+        msg += `That's actually all of it — marking it **complete**! `;
+      }
+
+      if (nextEntry) {
+        const nextDate = new Date(nextEntry.date);
+        const isToday = nextEntry.date === new Date().toISOString().split('T')[0];
+        const isTomorrow = !isToday && nextDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
+        const whenStr = isToday ? 'later today' : isTomorrow ? 'tomorrow' : nextDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+        msg += `\n\n📅 **Up next (Day ${nextEntry.day}):** ${nextEntry.theme} — ${whenStr}. Keep going! 🔥`;
+      }
+
+      displayBotMessage(msg);
+      _checkInPendingEntry = null;
+      _checkInAwaitingCoverage = false;
+      return;
+    }
+
+    // Primary check-in response: YES or completion intent
+    if (isCompletionIntent(text)) {
+      _currentSchedule = markEntryComplete(userId, _currentSchedule, _checkInPendingEntry.index);
+      const nextEntry = getNextPendingEntry(_currentSchedule, _checkInPendingEntry.index);
+      displayBotMessage(buildCompletionConfirmMessage(_checkInPendingEntry, nextEntry, _currentSchedule));
+      _checkInPendingEntry = null;
+      _checkInAwaitingCoverage = false;
+      return;
+    }
+
+    // Primary check-in response: NO or negative intent
+    if (isNegativeIntent(text)) {
+      _checkInAwaitingCoverage = true;
+      displayBotMessage(`No worries! 💪 How much of **${_checkInPendingEntry.theme}** did you cover?\n\nTell me in any way: *"50%"*, *"half"*, *"just simplification"*, or *"0"* if you haven't started yet.`);
+      return;
+    }
+
+    // Partial coverage given directly in the first reply (e.g. "50%", "half")
+    const parsedDirect = parsePartialCompletion(text);
+    if (parsedDirect.percentage !== null) {
+      _checkInAwaitingCoverage = true; // reuse coverage path
+      // Simulate awaiting coverage state and re-call with same text
+      const pct = parsedDirect.percentage;
+      _currentSchedule = redistributePartialEntry(userId, _currentSchedule, _checkInPendingEntry, pct);
+      const remaining = 100 - pct;
+      const nextEntry = getNextPendingEntry(_currentSchedule, _checkInPendingEntry.index);
+      let msg = `Got it — **${pct}% done** on ${_checkInPendingEntry.theme}. `;
+      if (remaining > 0) msg += `Carried the remaining **${remaining}%** forward. `;
+      else msg += `Actually that's everything — marked complete! `;
+      if (nextEntry) {
+        const isToday = nextEntry.date === new Date().toISOString().split('T')[0];
+        const isTomorrow = !isToday && new Date(nextEntry.date).toDateString() === new Date(Date.now() + 86400000).toDateString();
+        const whenStr = isToday ? 'later today' : isTomorrow ? 'tomorrow' : new Date(nextEntry.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+        msg += `\n\n📅 **Up next (Day ${nextEntry.day}):** ${nextEntry.theme} — ${whenStr}. 🔥`;
+      }
+      displayBotMessage(msg);
+      _checkInPendingEntry = null;
+      _checkInAwaitingCoverage = false;
+      return;
+    }
+
+    // Couldn't classify — let it fall through to GPT with context still intact
+    _checkInPendingEntry = null;
+    _checkInAwaitingCoverage = false;
+  }
+
+  // ── Schedule completion interceptor (fallback for "done" typed any time) ──
+  if (_currentSchedule && isCompletionIntent(text) && !_scheduleCompletionHandled) {
+    const todayEntry = getTodayEntry(_currentSchedule);
+    if (todayEntry) {
+      _scheduleCompletionHandled = true;
+      displayUserBubble(text);
+      input.value = '';
+      input.style.height = 'auto';
+
+      const userId = _getUserId(mockData);
+      _currentSchedule = markEntryComplete(userId, _currentSchedule, todayEntry.index);
+
+      const nextEntry = getNextPendingEntry(_currentSchedule, todayEntry.index);
+      displayBotMessage(buildCompletionConfirmMessage(todayEntry, nextEntry, _currentSchedule));
+
+      _scheduleCompletionHandled = false;
+      return;
+    }
   }
 
   if (isOutOfScope(text)) {
@@ -143,6 +282,9 @@ function processData(data) {
 
       // ── Goal Tracker: check goals on load ─────────────────
       _checkGoalsOnLoad(data, preComputedStats);
+
+      // ── Schedule Engine: check for today's task / overdue ──
+      _checkScheduleOnLoad(data);
 
       // Generate and display nudge cards
       const nudges = generateNudges(data, preComputedStats);
@@ -242,8 +384,13 @@ async function _checkGoalsOnLoad(data, stats) {
       displayBotMessage(nudgeMsg);
       _showCountdownBanner(nextGoal);
 
-      // Auto-trigger a daily study plan from LLM
-      setTimeout(() => _triggerStudyPlan(nextGoal, 'daily'), 500);
+      // Auto-trigger study plan:
+      // - If no schedule exists yet → generate a FULL roadmap automatically
+      // - If a schedule already exists → use daily nudge (shorter, focused on today)
+      const userId = _getUserId(data);
+      const existingSchedule = loadSchedule(userId);
+      const planMode = existingSchedule ? 'daily' : 'full';
+      setTimeout(() => _triggerStudyPlan(nextGoal, planMode), 500);
     }
 
     // If all goals have expired, remove them and ask for new
@@ -295,6 +442,11 @@ async function _handleGoalResponse(text) {
     saveGoals(mockData, goals);
     _goalPendingConfirm = null;
 
+    // Clear any existing schedule — new goal = fresh schedule will be generated
+    const userId = _getUserId(mockData);
+    clearSchedule(userId);
+    _currentSchedule = null;
+
     _showCountdownBanner(goal);
 
     // Auto-trigger full study schedule from LLM
@@ -326,6 +478,11 @@ async function _handleGoalResponse(text) {
     goals.push(goal);
     saveGoals(mockData, goals);
     _goalPendingConfirm = null;
+
+    // Clear any existing schedule for this new goal
+    const userId = _getUserId(mockData);
+    clearSchedule(userId);
+    _currentSchedule = null;
 
     const days = daysUntil(goal.date);
     displayBotMessage(`✅ **Goal set!** ${goal.name} on **${new Date(dateMatch).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}** — **${days} days** to go. I'll track your progress against this deadline! 🎯`);
@@ -434,6 +591,85 @@ Do NOT generate a full roadmap. Keep it to 150 words max. Be warm but direct.`;
   } catch (err) {
     console.error('[GoalTracker] Study plan generation failed:', err);
   }
+}
+
+/* ── Schedule Helpers ────────────────────────────────────── */
+
+/**
+ * Get a stable user ID from mock data (mirrors goal-manager key logic).
+ * @param {Object} data
+ * @returns {string}
+ */
+function _getUserId(data) {
+  return data.userid || data.username || 'default';
+}
+
+/**
+ * Called once on initial data load. Loads any existing schedule from
+ * localStorage and fires the daily nudge / overdue detection flow.
+ * @param {Object} data
+ */
+function _checkScheduleOnLoad(data) {
+  const userId = _getUserId(data);
+  const schedule = loadSchedule(userId);
+  if (!schedule) return;
+
+  _currentSchedule = schedule;
+
+  const overdue = detectOverdueEntries(schedule);
+  if (overdue.length > 0) {
+    // Stamp overdue entries so they're archived, show nudge, trigger AI reschedule
+    stampOverdueEntries(userId, schedule);
+    const overdueMsg = buildOverdueNudgeMessage(overdue, schedule);
+    setTimeout(() => displayBotMessage(overdueMsg), 900);
+
+    // Trigger a new full plan from the LLM
+    const goals = getGoals(data);
+    const nextGoal = getNextUpcomingGoal(goals);
+    if (nextGoal) {
+      clearSchedule(userId);
+      _currentSchedule = null;
+      setTimeout(() => _triggerStudyPlan(nextGoal, 'full'), 1400);
+    }
+    return;
+  }
+
+  // No overdue — proactively ask if today's task was done
+  const todayEntry = getTodayEntry(schedule);
+  if (todayEntry) {
+    _checkInPendingEntry = todayEntry;
+    setTimeout(() => {
+      displayBotMessage(buildDailyCheckinMessage(todayEntry, schedule));
+    }, 700);
+  }
+}
+
+/**
+ * Called when renderer fires 'olivebot:roadmap'. Converts ROADMAP weeks
+ * into a flat day-by-day schedule and saves it to localStorage.
+ * @param {Array} weeks — ROADMAP weeks array from the AI response
+ */
+function _onRoadmapReceived(weeks) {
+  if (!mockData) return;
+
+  const userId = _getUserId(mockData);
+  const goals = getGoals(mockData);
+  const nextGoal = getNextUpcomingGoal(goals);
+  const examDate = nextGoal ? nextGoal.date : (mockData.user?.exam_date || null);
+  const goalName = nextGoal ? nextGoal.name : (mockData.user?.target_exam || 'Your Exam');
+
+  const schedule = parseRoadmapToSchedule(weeks, examDate, goalName, userId);
+  if (!schedule) return;
+
+  saveSchedule(userId, schedule);
+  _currentSchedule = schedule;
+
+  console.log('[ScheduleEngine] Schedule saved:', schedule.entries.length, 'days for', goalName);
+
+  // Confirm to user that the schedule is tracked
+  displayBotMessage(
+    `📅 **Schedule saved!** I've broken your **${goalName}** plan into **${schedule.entries.length} tracked days**.\n\nEvery day when you open the app, I'll remind you what to focus on. When you finish a session, just say **"done"** and I'll mark it complete and move you to the next topic. 💪`
+  );
 }
 
 /**
@@ -603,6 +839,10 @@ Analyze this quiz result alongside my overall mock history (in your pre-computed
 function init() {
   initFileUpload(handleFileLoaded, (msg) => displayBotMessage(msg));
 
+  // ── Schedule Engine: capture ROADMAP blocks from AI responses ──
+  document.addEventListener('olivebot:roadmap', (e) => {
+    _onRoadmapReceived(e.detail.weeks);
+  });
 
   document.getElementById('send-btn').addEventListener('click', handleSend);
 

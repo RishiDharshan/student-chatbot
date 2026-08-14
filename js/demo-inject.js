@@ -62,13 +62,12 @@
           <div class="di-step-num">2</div>
           <div class="di-step-label">Preview</div>
         </div>
-        <div class="di-step-line"></div>
+        <div class="di-step-line"></div>x
         <div class="di-step" id="di-step-3">
           <div class="di-step-num">3</div>
           <div class="di-step-label">Injected</div>
         </div>
       </div>
-
       <!-- Format Info -->
       <div class="di-format-info">
         <span class="di-format-info-icon">ℹ️</span>

@@ -12,6 +12,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# ── RAG Knowledge Base ───────────────────────────────────────────────────────
+try:
+    from rag.knowledge_base import (
+        build_index_background, should_trigger_rag,
+        retrieve_top_match, build_rag_system_prompt, build_no_match_system_prompt,
+    )
+    _RAG_AVAILABLE = True
+except ImportError:
+    _RAG_AVAILABLE = False
+    print("[RAG] rag/knowledge_base.py not found — RAG disabled")
+
 # ── Load .env ────────────────────────────────────────────────────────────────
 
 def load_env():
@@ -60,6 +71,10 @@ async def _run_mastery_refresh():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _init_dkt_scheduler()
+    # Kick off RAG index build in background (doesn't block server startup)
+    if _RAG_AVAILABLE:
+        data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public_data.json")
+        build_index_background(data_path)
     yield
     if _scheduler: _scheduler.shutdown(wait=False)
 
@@ -72,12 +87,78 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def chat_proxy(request: Request):
     if not API_KEY:
         raise HTTPException(500, detail="API Key not configured on the server.")
-    body = await request.body()
+
+    body_bytes = await request.body()
+
+    # ── RAG Intercept & Query Rewrite ────────────────────────────────────────
+    # If the user message might need context, we rewrite it into a standalone
+    # query using the chat history, then check if it triggers RAG.
+    if _RAG_AVAILABLE:
+        try:
+            body_json = json.loads(body_bytes)
+            messages = body_json.get("messages", [])
+            
+            # Find the last user message
+            user_msg = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), None)
+            
+            if user_msg:
+                # 1. Run Smart LLM Router on every user message
+                recent_msgs = [m for m in messages[-5:] if m.get("role") in ["user", "assistant"]]
+                router_prompt = {
+                    "role": "system",
+                    "content": "You are a query intent classifier for an exam coaching bot. Analyze the chat history and the user's latest message.\n1. Rewrite the latest message into a standalone question including necessary context (e.g. exam name).\n2. Determine if the user is asking for factual exam knowledge that requires looking up an external database (e.g., syllabus, cutoffs, salary, exam patterns, eligibility). Reply true or false.\nOutput JSON strictly in this format: { \"rewritten_query\": string, \"requires_database_search\": boolean }"
+                }
+                
+                payload = {
+                    "model": "gpt-4o-mini",
+                    "response_format": { "type": "json_object" },
+                    "messages": [router_prompt] + recent_msgs,
+                    "temperature": 0.0,
+                    "max_tokens": 150
+                }
+                
+                rewritten_msg = user_msg
+                requires_rag = False
+                
+                async with httpx.AsyncClient(timeout=5) as client:
+                    resp = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        json=payload,
+                        headers={"Authorization": f"Bearer {API_KEY}"}
+                    )
+                    if resp.status_code == 200:
+                        try:
+                            router_decision = json.loads(resp.json()["choices"][0]["message"]["content"])
+                            rewritten_msg = router_decision.get("rewritten_query", user_msg)
+                            requires_rag = router_decision.get("requires_database_search", False)
+                            print(f"[RAG Router] Rewritten: '{rewritten_msg}' | Requires RAG: {requires_rag}")
+                        except Exception as e:
+                            print(f"[RAG Router] JSON parse error: {e}")
+
+                # 2. Check if the router decided to trigger RAG
+                if requires_rag:
+                    match = retrieve_top_match(rewritten_msg)
+                    if match:
+                        rag_prompt = build_rag_system_prompt(match, rewritten_msg)
+                    else:
+                        rag_prompt = build_no_match_system_prompt(rewritten_msg)
+
+                    # Replace the system message with RAG-grounded prompt, but KEEP history
+                    history_msgs = [m for m in messages if m.get("role") != "system"]
+                    rag_messages = [{"role": "system", "content": rag_prompt}] + history_msgs
+                    
+                    rag_body = {**body_json, "messages": rag_messages}
+                    body_bytes = json.dumps(rag_body).encode("utf-8")
+                    print(f"[RAG] Triggered for match: {match['exam_name'] + ' / ' + match['topic'] if match else 'none'}")
+        except Exception as e:
+            print(f"[RAG] Intercept error (falling back to normal): {e}")
+    # ── End RAG Intercept ────────────────────────────────────────────────────
+
     async with httpx.AsyncClient(verify=False, timeout=60) as client:
         try:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
-                content=body,
+                content=body_bytes,
                 headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"},
             )
             return JSONResponse(content=resp.json(), status_code=resp.status_code)
