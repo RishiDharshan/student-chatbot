@@ -198,9 +198,9 @@ def should_trigger_rag(user_message: str) -> bool:
 def build_rag_system_prompt(match: dict, user_message: str) -> str:
     return f"""You are OliveBot, an AI exam coaching assistant. The student has asked a general exam knowledge question.
 
-You MUST answer using ONLY the following reference data from our verified knowledge base.
-Do NOT use any outside knowledge, assumptions, or information not present in the data below.
-If the data does not fully answer the question, honestly say: "I don't have complete information on that in my knowledge base."
+You MUST answer using the following reference data from our verified knowledge base.
+Provide whatever information is available in the data that relates to the student's question, even if the information is about future events or is partial.
+Do NOT use outside knowledge or hallucinate.
 
 --- EXAM REFERENCE DATA ---
 Exam: {match['exam_name']}
