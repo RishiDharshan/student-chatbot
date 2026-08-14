@@ -1,6 +1,6 @@
 """
 OliveBot — RAG Knowledge Base
-Indexes public_data.json using sentence-transformer embeddings into ChromaDB.
+Indexes public_data.json using OpenAI embeddings into ChromaDB.
 Provides fast semantic search to retrieve the closest exam/topic content chunk
 for a user's query, grounding the AI's answer in verified data.
 """
@@ -44,6 +44,34 @@ def strip_html(raw_html: str) -> str:
     return text.strip()
 
 
+# ── OpenAI Embedding Function ─────────────────────────────────────────────────
+
+class OpenAIEmbeddingFunction:
+    """
+    A ChromaDB-compatible embedding function that uses OpenAI's
+    text-embedding-3-small model. Lightweight, fast, and no local model download.
+    """
+    def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
+        self._api_key = api_key
+        self._model = model
+
+    def __call__(self, input: list[str]) -> list[list[float]]:
+        import httpx
+        response = httpx.post(
+            "https://api.openai.com/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
+            json={"model": self._model, "input": input},
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        # Return embeddings in the same order as input
+        return [item["embedding"] for item in sorted(data, key=lambda x: x["index"])]
+
+
 # ── Module State ─────────────────────────────────────────────────────────────
 
 _collection = None
@@ -72,13 +100,17 @@ def build_index(data_path: str) -> bool:
         if _rag_ready:
             return True
 
-        print("[RAG] Starting knowledge base index build...")
+        print("[RAG] Starting knowledge base index build (using OpenAI embeddings)...")
 
         try:
             import chromadb
-            from chromadb.utils import embedding_functions
         except ImportError:
-            print("[RAG] chromadb not installed — RAG disabled. Run: pip install chromadb sentence-transformers")
+            print("[RAG] chromadb not installed — RAG disabled. Run: pip install chromadb")
+            return False
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            print("[RAG] OPENAI_API_KEY not set — RAG disabled.")
             return False
 
         if not os.path.exists(data_path):
@@ -113,11 +145,9 @@ def build_index(data_path: str) -> bool:
             return False
 
         try:
-            _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name="all-MiniLM-L6-v2"
-            )
+            _embedding_fn = OpenAIEmbeddingFunction(api_key=api_key)
         except Exception as e:
-            print(f"[RAG] Failed to load sentence-transformers: {e}")
+            print(f"[RAG] Failed to initialize OpenAI embedding function: {e}")
             return False
 
         client = chromadb.Client()
@@ -127,13 +157,16 @@ def build_index(data_path: str) -> bool:
             metadata={"hnsw:space": "l2"},
         )
 
-        BATCH = 500
+        # Batch index in chunks of 100 (OpenAI API limit per request is 2048 inputs,
+        # but keeping smaller batches avoids timeout issues on slow connections)
+        BATCH = 100
         for i in range(0, len(ids), BATCH):
             _collection.add(
                 ids=ids[i:i+BATCH],
                 documents=documents[i:i+BATCH],
                 metadatas=metadatas[i:i+BATCH],
             )
+            print(f"[RAG] Indexed batch {i//BATCH + 1}/{(len(ids) + BATCH - 1)//BATCH}")
 
         _rag_record_count = len(ids)
         _rag_ready = True
