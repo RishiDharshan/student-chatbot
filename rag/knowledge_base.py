@@ -60,7 +60,7 @@ RAG_TRIGGER_KEYWORDS = [
     'important dates', 'application form', 'registration',
 ]
 
-SIMILARITY_THRESHOLD = 0.5  # Cosine distance threshold (1 - cos_sim). Lower is more strict.
+SIMILARITY_THRESHOLD = 0.9  # Cosine distance threshold (0=identical, 1=opposite). 0.9 allows most valid matches.
 
 
 # ── Index Builder ─────────────────────────────────────────────────────────────
