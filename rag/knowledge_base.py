@@ -44,34 +44,6 @@ def strip_html(raw_html: str) -> str:
     return text.strip()
 
 
-# ── OpenAI Embedding Function ─────────────────────────────────────────────────
-
-class OpenAIEmbeddingFunction:
-    """
-    A ChromaDB-compatible embedding function that uses OpenAI's
-    text-embedding-3-small model. Lightweight, fast, and no local model download.
-    """
-    def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
-        self._api_key = api_key
-        self._model = model
-
-    def __call__(self, input: list[str]) -> list[list[float]]:
-        import httpx
-        response = httpx.post(
-            "https://api.openai.com/v1/embeddings",
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
-            json={"model": self._model, "input": input},
-            timeout=30,
-        )
-        response.raise_for_status()
-        data = response.json()["data"]
-        # Return embeddings in the same order as input
-        return [item["embedding"] for item in sorted(data, key=lambda x: x["index"])]
-
-
 # ── Module State ─────────────────────────────────────────────────────────────
 
 _collection = None
@@ -88,7 +60,7 @@ RAG_TRIGGER_KEYWORDS = [
     'important dates', 'application form', 'registration',
 ]
 
-SIMILARITY_THRESHOLD = 1.2
+SIMILARITY_THRESHOLD = 0.5  # Cosine distance threshold (1 - cos_sim). Lower is more strict.
 
 
 # ── Index Builder ─────────────────────────────────────────────────────────────
@@ -145,7 +117,11 @@ def build_index(data_path: str) -> bool:
             return False
 
         try:
-            _embedding_fn = OpenAIEmbeddingFunction(api_key=api_key)
+            from chromadb.utils import embedding_functions
+            _embedding_fn = embedding_functions.OpenAIEmbeddingFunction(
+                api_key=api_key,
+                model_name="text-embedding-3-small"
+            )
         except Exception as e:
             print(f"[RAG] Failed to initialize OpenAI embedding function: {e}")
             return False
@@ -154,7 +130,7 @@ def build_index(data_path: str) -> bool:
         _collection = client.create_collection(
             name="exam_knowledge",
             embedding_function=_embedding_fn,
-            metadata={"hnsw:space": "l2"},
+            metadata={"hnsw:space": "cosine"},
         )
 
         # Batch index in chunks of 100 (OpenAI API limit per request is 2048 inputs,
@@ -194,9 +170,11 @@ def retrieve_top_match(query: str) -> Optional[dict]:
         if not results or not results['ids'] or not results['ids'][0]:
             return None
         distance = results['distances'][0][0]
-        if distance > SIMILARITY_THRESHOLD:
-            return None
         meta = results['metadatas'][0][0]
+        print(f"[RAG Debug] Top match distance: {distance} for topic: {meta.get('topic')}")
+        if distance > SIMILARITY_THRESHOLD:
+            print(f"[RAG Debug] Rejected because {distance} > {SIMILARITY_THRESHOLD}")
+            return None
         return {
             'exam_name': meta.get('exam_name', ''),
             'topic': meta.get('topic', ''),
